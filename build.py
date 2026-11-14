@@ -18,6 +18,9 @@ src = SRC.read_text(encoding="utf-8")
 if SPLIT not in src:
     raise SystemExit(f"Could not find the marker {SPLIT!r} in {SRC}")
 head, body = src.split(SPLIT, 1)
+# The source keeps its original <title> (it names the Claude artifact). The public page is "Party Feud";
+# once loaded, the game sets the tab title from the title chosen in Setup anyway.
+head = head.replace("<title>Friendsgiving Feud</title>", "<title>Party Feud</title>")
 
 page = (
     "<!doctype html>\n"

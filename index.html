@@ -3,7 +3,7 @@
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta charset="utf-8">
-<title>Friendsgiving Feud</title>
+<title>Party Feud</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -313,7 +313,7 @@ textarea{font-family:ui-monospace,Menlo,monospace;font-size:13px;line-height:1.5
 <!-- ============ BOARD (TV) ============ -->
 <div class="app" id="app">
   <header class="top">
-    <div class="logo">Friendsgiving <span>Feud</span></div>
+    <div class="logo" id="logo">Friendsgiving <span>Feud</span></div>
     <div class="meta" id="boardMeta">
       <span class="chip" id="roundChip">Round 1 of 10</span>
       <span class="chip mult" id="multChip">Single points</span>
@@ -499,6 +499,7 @@ textarea{font-family:ui-monospace,Menlo,monospace;font-size:13px;line-height:1.5
     <div>
       <h3>Game</h3>
       <div class="cols">
+        <label>Game title (shown on the TV)<input id="titleIn" maxlength="40" placeholder="e.g. Friendsgiving Feud"></label>
         <label>Points to win<input id="target" type="number" min="50" step="50"></label>
         <label>Fast Money goal<input id="fmGoalIn" type="number" min="50" step="10"></label>
       </div>
@@ -708,7 +709,7 @@ Lock the doors 8
 Pray 5`;
 
 const STORE='friendsgiving-feud-v1';
-const BUILD=20; // bump on every publish so the host can spot a TV window running old code
+const BUILD=21; // bump on every publish so the host can spot a TV window running old code
 let tvMode=null,tvBuild=null;
 const HOST_KEYS=new Set(['Enter','Space','KeyX','KeyR','KeyT','KeyD','ArrowLeft','ArrowRight','ArrowUp','ArrowDown','BracketLeft','BracketRight','KeyN','KeyP','KeyU','KeyS','KeyF','KeyM','Backspace','Digit0','Digit1','Digit2','Digit3','Digit4','Digit5','Digit6','Digit7','Digit8','Numpad0','Numpad1','Numpad2','Numpad3','Numpad4','Numpad5','Numpad6','Numpad7','Numpad8']);
 
@@ -721,7 +722,7 @@ function freshState(){
       {name:'Team Turkey',players:'',score:0,key:'KeyZ',keyLabel:'Z'},
       {name:'Team Stuffing',players:'',score:0,key:'Slash',keyLabel:'/'}
     ],
-    qtext:SAMPLE_Q,fmtext:SAMPLE_FM,target:300,round:0,muted:false,
+    title:'Party Feud',qtext:SAMPLE_Q,fmtext:SAMPLE_FM,target:300,round:0,muted:false,
     shown:false,revealed:[],strikes:0,pot:0,control:null,awarded:false,armed:false,buzzed:null,over:false,
     fm:freshFM()
   };
@@ -1079,7 +1080,14 @@ function buildBoard(){
   }
   builtKey=S.round+'|'+S.qtext;
 }
+// Game title: the last word gets the accent color ("Friendsgiving" + "Feud").
+function renderTitle(){
+  const t=(S.title||'Party Feud').trim()||'Party Feud',w=t.split(/\s+/),last=w.pop(),lg=$('logo');
+  lg.textContent=w.length?w.join(' ')+' ':'';lg.appendChild(el('span',null,last));
+  document.title=VIEW==='host'?`Host · ${t}`:t;
+}
 function renderBoard(){
+  renderTitle();
   const fm=S.mode==='fm';
   $('mainView').hidden=fm;$('fmView').hidden=!fm;$('boardMeta').hidden=fm;
   const hostLive=Date.now()-hostSeen<6000;
@@ -1162,6 +1170,7 @@ function tweenScores(){
 
 /* ---------- Host screen ---------- */
 function renderHost(){
+  renderTitle();
   const fm=S.mode==='fm';
   $('segMain').classList.toggle('on',!fm);$('segFm').classList.toggle('on',fm);
   $('hvMain').hidden=fm;$('hvFm').hidden=!fm;
@@ -1329,7 +1338,7 @@ function render(){
 }
 
 /* ---------- Setup ---------- */
-function openSetup(){setupOpen=true;$('setup').hidden=false;$('qedit').value=S.qtext;$('fmedit').value=S.fmtext;$('target').value=S.target;$('fmGoalIn').value=S.fm.goal;renderSetup()}
+function openSetup(){setupOpen=true;$('setup').hidden=false;$('qedit').value=S.qtext;$('fmedit').value=S.fmtext;$('target').value=S.target;$('fmGoalIn').value=S.fm.goal;$('titleIn').value=S.title;renderSetup()}
 function closeSetup(){setupOpen=false;learning=null;$('setup').hidden=true;render()}
 function renderSetup(){
   const wrap=$('teamCards');
@@ -1445,6 +1454,7 @@ $('copyPrompt').addEventListener('click',()=>{
   const fallback=()=>{pt.hidden=false;pt.focus();pt.select();$('copyMsg').textContent='Copy didn\'t work here. The prompt is selected below: press Cmd+C.'};
   try{navigator.clipboard.writeText(AI_PROMPT).then(done,fallback)}catch(e){fallback()}
 });
+$('titleIn').addEventListener('input',e=>{S.title=e.target.value.trim()||'Party Feud';sync()});
 $('target').addEventListener('input',e=>{const v=parseInt(e.target.value,10);if(v>0){S.target=v;sync()}});
 $('fmGoalIn').addEventListener('input',e=>{const v=parseInt(e.target.value,10);if(v>0){S.fm.goal=v;sync()}});
 $('qedit').addEventListener('input',renderSetup);
@@ -1544,6 +1554,8 @@ window.addEventListener('hashchange',()=>{VIEW=location.hash==='#host'?'host':'b
 function start(data){
   const saved=(data&&data.S)||load();
   if(saved&&saved.teams){
+    // Games saved before titles existed were the Friendsgiving game: keep that name.
+    if(!saved.title)saved.title='Friendsgiving Feud';
     S=Object.assign(freshState(),saved);
     S.fm=Object.assign(freshFM(),saved.fm||{});
     if(!S.fmtext)S.fmtext=SAMPLE_FM;

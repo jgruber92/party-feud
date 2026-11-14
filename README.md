@@ -20,6 +20,10 @@ Made for a Friendsgiving and shared for other game nights. Not affiliated with t
 
 Both windows must be in the **same browser on the same laptop**. That's how they stay in sync. If the host screen shows a red "TV window isn't connected" banner, that's what to check.
 
+## Your game's name
+
+Open **Setup** and type a **Game title**, like "Friendsgiving Feud" or "Super Bowl Feud". It shows at the top of the TV, with the last word in the accent color.
+
 ## Buzzers
 
 Any buzzer set that plugs in by USB and **acts like a keyboard** works (each button sends a key press). Open **Setup** (press S), click **Set buzzer** for each team, and press that team's button. No buzzers yet? The defaults are **Z** for the left team and **/** for the right team.
