@@ -346,7 +346,7 @@ textarea{font-family:ui-monospace,Menlo,monospace;font-size:13px;line-height:1.5
 
   <section class="fmview" id="fmView" hidden>
     <div class="fmhead">
-      <div class="fmtitle">Fast Money</div>
+      <div class="fmtitle" id="fmTitle">Fast Money</div>
       <div class="timer idle" id="fmTimer">20</div>
       <div class="fmteam" id="fmTeam"></div>
     </div>
@@ -451,8 +451,9 @@ textarea{font-family:ui-monospace,Menlo,monospace;font-size:13px;line-height:1.5
           <div class="row" id="fmTabs"></div>
           <div class="hvtimer">
             <div class="big" id="hvTimer">20</div>
-            <button class="hb big go" data-h="fmTimer" id="hvTimerBtn">Start <kbd>T</kbd></button>
+            <button class="hb big go" data-h="fmTimer" id="hvTimerBtn">Start <kbd>Enter</kbd></button>
             <button class="hb" data-h="fmTimerReset">Reset timer</button>
+            <button class="hb" data-h="fmNewRound" id="fmNewRound">New Fast Money round</button>
           </div>
         </div>
         <div class="box">
@@ -528,7 +529,7 @@ textarea{font-family:ui-monospace,Menlo,monospace;font-size:13px;line-height:1.5
     </div>
     <div>
       <h3>Fast Money questions</h3>
-      <p class="help">Same format. The first 5 are for the left team, the next 5 for the right team, so nobody hears their questions ahead of time.</p>
+      <p class="help">Same format. Every 10 questions is one Fast Money round: the first 5 go to the left team, the next 5 to the right team, so nobody hears their questions ahead of time. Add 20 for two rounds, 30 for three.</p>
       <textarea id="fmedit" spellcheck="false"></textarea>
     </div>
     <div class="actions">
@@ -706,15 +707,95 @@ Put on pajamas 18
 Read 13
 Set an alarm 10
 Lock the doors 8
-Pray 5`;
+Pray 5
+
+Name something people take on a road trip
+Snacks 34
+Music 22
+Pillow 14
+GPS 12
+Phone charger 10
+Sunglasses 6
+
+Name a holiday people decorate for
+Christmas 45
+Halloween 25
+Easter 10
+Fourth of July 8
+Thanksgiving 7
+Valentine's Day 4
+
+Name something you'd find at a carnival
+Rides 30
+Cotton candy 25
+Games 18
+Ferris wheel 12
+Clowns 8
+Funnel cake 5
+
+Name a reason a dog barks
+Doorbell 32
+Stranger 26
+Hungry 14
+Squirrel 12
+Wants out 9
+Bored 4
+
+Name something you do on a snow day
+Go sledding 33
+Build a snowman 25
+Sleep in 15
+Shovel 12
+Drink hot cocoa 8
+Watch movies 5
+
+Name something people are afraid of
+Spiders 34
+Snakes 24
+Heights 18
+Clowns 10
+The dark 8
+Public speaking 4
+
+Name a breakfast food
+Eggs 35
+Pancakes 22
+Bacon 16
+Cereal 12
+Waffles 8
+Toast 5
+
+Name something you plug in at night
+Phone 55
+Laptop 15
+Watch 10
+Car 7
+Night light 6
+Tablet 4
+
+Name a famous guitarist
+Jimi Hendrix 30
+Eric Clapton 20
+Eddie Van Halen 15
+Slash 12
+Jimmy Page 10
+Carlos Santana 8
+
+Name something on a Thanksgiving table
+Turkey 40
+Stuffing 18
+Cranberry sauce 13
+Mashed potatoes 12
+Pie 8
+Gravy 6`;
 
 const STORE='friendsgiving-feud-v1';
-const BUILD=21; // bump on every publish so the host can spot a TV window running old code
+const BUILD=22; // bump on every publish so the host can spot a TV window running old code
 let tvMode=null,tvBuild=null;
 const HOST_KEYS=new Set(['Enter','Space','KeyX','KeyR','KeyT','KeyD','ArrowLeft','ArrowRight','ArrowUp','ArrowDown','BracketLeft','BracketRight','KeyN','KeyP','KeyU','KeyS','KeyF','KeyM','Backspace','Digit0','Digit1','Digit2','Digit3','Digit4','Digit5','Digit6','Digit7','Digit8','Numpad0','Numpad1','Numpad2','Numpad3','Numpad4','Numpad5','Numpad6','Numpad7','Numpad8']);
 
 function blankSlots(){return Array.from({length:5},()=>({t:'',p:0,set:false,st:0}))}
-function freshFM(){return {team:0,player:0,q:0,showBoth:false,goal:200,timer:{running:false,endsAt:0,left:20},slots:[[blankSlots(),blankSlots()],[blankSlots(),blankSlots()]]}}
+function freshFM(){return {set:0,team:0,player:0,q:0,showBoth:false,goal:200,timer:{running:false,endsAt:0,left:20},slots:[[blankSlots(),blankSlots()],[blankSlots(),blankSlots()]]}}
 function freshState(){
   return {
     v:0,mode:'main',
@@ -750,7 +831,11 @@ function parseQ(text){
 function mult(r){return r<3?1:r<5?2:3}
 function multName(r){return ['','Single','Double','Triple'][mult(r)]+' points'}
 function cur(){return Q[S.round]}
-function fmQs(t){const n=FMQ.length;if(!n)return[];const out=[];for(let i=0;i<5;i++)out.push(FMQ[(t*5+i)%n]);return out}
+// Every 10 Fast Money questions is one round: 5 for the left team, then 5 for the right team.
+function fmQs(t){const n=FMQ.length;if(!n)return[];const base=(S.fm.set||0)*10+t*5,out=[];for(let i=0;i<5;i++)out.push(FMQ[(base+i)%n]);return out}
+function fmRoundsAvailable(){return Math.max(1,Math.floor(FMQ.length/10))}
+// After the 5th answer the clock stops by itself.
+function fmStopIfDone(){if(S.fm.q>=5&&S.fm.timer.running)S.fm.timer={running:false,endsAt:0,left:Math.max(0,(S.fm.timer.endsAt-Date.now())/1000)}}
 function fmTotal(t){let s=0;for(const pl of S.fm.slots[t])for(const x of pl)if(x.st===2)s+=x.p;return s}
 function fmPlayed(t){return S.fm.slots[t].some(pl=>pl.some(x=>x.set))}
 // Footer label per team: the selected team is playing now; the other is either done (with points) or up next.
@@ -817,11 +902,23 @@ let ac=null;
 function audio(){
   if(!ac){try{ac=new (window.AudioContext||window.webkitAudioContext)()}catch(e){return null}}
   if(ac.state==='suspended')ac.resume().catch(()=>{});
+  keepAlive();
   return ac;
+}
+// AirPlay and Bluetooth speakers doze off during silence and clip the start of short sounds
+// (the ding). A steady, far-too-quiet-to-hear hiss keeps the audio link awake.
+let kaOn=false;
+function keepAlive(){
+  if(kaOn||!ac||!soundHere())return;kaOn=true;
+  const len=ac.sampleRate*2,buf=ac.createBuffer(1,len,ac.sampleRate),d=buf.getChannelData(0);
+  for(let i=0;i<len;i++)d[i]=Math.random()*2-1;
+  const src=ac.createBufferSource();src.buffer=buf;src.loop=true;
+  const g=ac.createGain();g.gain.value=0.0004; // about -68 dB
+  src.connect(g).connect(ac.destination);src.start();
 }
 function tone(f,dur,type,vol,when,slide){
   const a=audio();if(!a||S.muted)return;
-  const t=a.currentTime+(when||0),o=a.createOscillator(),g=a.createGain();
+  const t=a.currentTime+.02+(when||0),o=a.createOscillator(),g=a.createGain(); // small lead so the attack isn't cut
   o.type=type||'sine';o.frequency.setValueAtTime(f,t);
   if(slide)o.frequency.exponentialRampToValueAtTime(slide,t+dur);
   g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(vol||.2,t+.012);g.gain.exponentialRampToValueAtTime(.0001,t+dur);
@@ -955,11 +1052,11 @@ function fmSlot(q){return S.fm.slots[S.fm.team][S.fm.player][q]}
 const F={
   pick(i){
     const q=S.fm.q;if(q>4)return;const a=fmQs(S.fm.team)[q]?.answers[i];if(!a)return;
-    act(()=>{Object.assign(fmSlot(q),{t:a.t,p:a.p,set:true,st:0});S.fm.q=Math.min(5,q+1)});
+    act(()=>{Object.assign(fmSlot(q),{t:a.t,p:a.p,set:true,st:0});S.fm.q=Math.min(5,q+1);fmStopIfDone()});
   },
   other(text){
     const q=S.fm.q;if(q>4)return;
-    act(()=>{Object.assign(fmSlot(q),{t:text||'No answer',p:0,set:true,st:0});S.fm.q=Math.min(5,q+1)});
+    act(()=>{Object.assign(fmSlot(q),{t:text||'No answer',p:0,set:true,st:0});S.fm.q=Math.min(5,q+1);fmStopIfDone()});
   },
   dup(){fxOnly({k:'dup'})},
   setQ(q){act(()=>{S.fm.q=Math.max(0,Math.min(4,q))})},
@@ -984,7 +1081,15 @@ const F={
     act(()=>{col[i].st=step},isFinal?{k:'fmresult',t,total:after,goal:S.fm.goal,p:x.p}:hit?{k:'fmgoal',t}:step===1?{k:'fmtext'}:{k:'fmpts',p:x.p});
   },
   result(){const t=S.fm.team;fxOnly({k:'fmresult',t,total:fmTotal(t),goal:S.fm.goal,p:0})},
-  uncover(){act(()=>{S.fm.showBoth=!S.fm.showBoth})}
+  uncover(){act(()=>{S.fm.showBoth=!S.fm.showBoth})},
+  // Enter: before answers are in, start the clock; once all 5 are in, reveal the next one.
+  go(){
+    if(S.fm.q>=5){F.reveal();return}
+    const t=S.fm.timer;
+    if(t.running)return; // already counting down
+    F.timer();
+  },
+  newRound(){act(()=>{const goal=S.fm.goal,set=(S.fm.set||0)+1;S.fm=Object.assign(freshFM(),{goal,set})},{k:'show'})}
 };
 
 /* ---------- Effects ---------- */
@@ -1132,6 +1237,7 @@ function renderBoard(){
 }
 function renderFmBoard(){
   const f=S.fm,t=f.team;
+  $('fmTitle').textContent=(f.set||0)>0?`Fast Money ${f.set+1}`:'Fast Money';
   const head=$('fmTeam');head.style.setProperty('--tc',teamColor(t));
   head.textContent=S.teams[t].name;head.appendChild(el('small',null,`Player ${f.player+1} of 2`));
   const g=$('fmGrid');g.innerHTML='';
@@ -1298,7 +1404,9 @@ function renderHostFm(){
   $('fmUncoverBtn').hidden=f.player!==1;
   $('fmUncoverBtn').textContent=f.showBoth?'Cover player 1 again':'Uncover player 1';
   const tb=$('fmTotals');tb.innerHTML='';
-  tb.appendChild(el('div','hvmeta',`Fast Money totals · goal ${f.goal}`));
+  const set=f.set||0,avail=fmRoundsAvailable();
+  tb.appendChild(el('div','hvmeta',`Fast Money round ${set+1} totals · goal ${f.goal}`));
+  if(set+1>avail)tb.appendChild(el('p','help',`You have questions for ${avail} round${avail>1?'s':''}, so this round repeats earlier questions. Load more in Setup.`));
   S.teams.forEach((tm,i)=>{const r=el('div','nm',fmStatus(i));r.style.color=teamColor(i);tb.appendChild(r)});
 }
 function renderSync(){
@@ -1321,7 +1429,7 @@ function updateTimers(){
   }
   if(VIEW==='host'&&S.mode==='fm'){
     $('hvTimer').textContent=txt;
-    $('hvTimerBtn').innerHTML=run&&left>0?'Pause <kbd>T</kbd>':run?'Time is up. Restart <kbd>T</kbd>':'Start <kbd>T</kbd>';
+    $('hvTimerBtn').innerHTML=run&&left>0?'Pause <kbd>T</kbd>':run?'Time is up. Restart <kbd>T</kbd>':S.fm.q>=5?'Clock stopped':'Start <kbd>Enter</kbd>';
   }
 }
 setInterval(()=>{updateTimers();if(VIEW==='host')renderSync()},150);
@@ -1410,7 +1518,7 @@ document.addEventListener('keydown',e=>{
   const d=c.match(/^(?:Digit|Numpad)([0-8])$/);
   if(S.mode==='fm'){
     if(d){e.preventDefault();+d[1]===0?F.other('No answer'):F.pick(+d[1]-1);return}
-    const m={KeyT:F.timer,KeyD:F.dup,Space:F.reveal,Enter:F.reveal,ArrowUp:()=>F.setQ(S.fm.q-1),ArrowDown:()=>F.setQ(S.fm.q+1)};
+    const m={KeyT:F.timer,KeyD:F.dup,Space:F.reveal,Enter:F.go,ArrowUp:()=>F.setQ(S.fm.q-1),ArrowDown:()=>F.setQ(S.fm.q+1)};
     if(m[c]){e.preventDefault();m[c]()}
     return;
   }
@@ -1438,7 +1546,7 @@ $('hostView').addEventListener('click',e=>{
   const map={
     ctl0:()=>A.ctl(0),ctl1:()=>A.ctl(1),award0:()=>A.award(0),award1:()=>A.award(1),
     fmTeam0:()=>F.team(0),fmTeam1:()=>F.team(1),fmPlayer0:()=>F.player(0),fmPlayer1:()=>F.player(1),
-    fmTimer:F.timer,fmResult:F.result,hostNewGame:hostNewGame,fmTimerReset:F.timerReset,fmDup:F.dup,fmNone:()=>F.other('No answer'),fmReveal:F.reveal,fmUncover:F.uncover
+    fmTimer:F.timer,fmResult:F.result,fmNewRound:fmNewRoundClick,hostNewGame:hostNewGame,fmTimerReset:F.timerReset,fmDup:F.dup,fmNone:()=>F.other('No answer'),fmReveal:F.reveal,fmUncover:F.uncover
   };
   (map[h]||A[h])?.();
 });
@@ -1482,7 +1590,7 @@ function hostNewGame(){
 const AI_PROMPT=`Write questions for a Family Feud-style party game.
 Theme and ideas: [PUT YOUR IDEAS HERE. Example: Friendsgiving, a group of 8 friends in their 30s, a few music and dad jokes.]
 
-Make 10 main game questions and 10 Fast Money questions. Each one is a survey-style prompt like "Name something you bring to the beach."
+Make 10 main game questions and 20 Fast Money questions (enough for two Fast Money rounds). Each one is a survey-style prompt like "Name something you bring to the beach."
 - Main game: 5 to 8 answers per question.
 - Fast Money: 6 to 8 answers per question, short and common so they're easy to match.
 - List answers from most to least popular, each with a made-up survey point value. The points for one question should add up to between 85 and 100.
@@ -1510,7 +1618,7 @@ Cherry 10
 Blueberry 6
 Key lime 4
 
-(9 more Fast Money questions)`;
+(19 more Fast Money questions)`;
 
 // Clean up a pasted reply: bullets, numbering, bold, "(35)", "- 35 pts" become "Answer 35".
 function cleanLine(l){
@@ -1540,6 +1648,14 @@ function importQuestions(){
   msg.textContent=`Loaded ${r.mq.length} main game questions and ${fmNote}. Back to round 1.${short}`;
   $('importBox').value='';renderSetup();
 }
+// "New Fast Money round": two clicks, so a stray click doesn't wipe the answers.
+let fmArm=0;
+function fmNewRoundClick(){
+  const b=$('fmNewRound');
+  if(!fmArm){b.textContent='Click again: clears answers, next questions';b.classList.add('bad');
+    fmArm=setTimeout(()=>{fmArm=0;b.textContent='New Fast Money round';b.classList.remove('bad')},3000);return}
+  clearTimeout(fmArm);fmArm=0;b.textContent='New Fast Money round';b.classList.remove('bad');F.newRound();
+}
 let armNew=false;
 $('newGame').addEventListener('click',()=>{
   const b=$('newGame');
@@ -1559,6 +1675,8 @@ function start(data){
     S=Object.assign(freshState(),saved);
     S.fm=Object.assign(freshFM(),saved.fm||{});
     if(!S.fmtext)S.fmtext=SAMPLE_FM;
+    // Untouched older sample (10 Fast Money questions) -> the current sample with more rounds.
+    else if(S.fmtext.trim().length<SAMPLE_FM.length&&SAMPLE_FM.startsWith(S.fmtext.trim()))S.fmtext=SAMPLE_FM;
   }
   shownScore[0]=S.teams[0].score;shownScore[1]=S.teams[1].score;
   render();

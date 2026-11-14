@@ -54,12 +54,15 @@ Rounds 1–3 are single points, 4–5 double, 6 and later triple. First team to 
 
 Switch the "On the TV" toggle at the top of the host screen to **Fast Money**. Each team sends two players. Player 1 gets 20 seconds for 5 questions, player 2 gets 25 seconds for the same 5 (player 1's answers are covered on the TV). Each team gets its own 5 questions.
 
-- **T** starts and pauses the clock.
-- **1–8** records which survey answer they gave, **0** for a pass, or type an answer that isn't on the list.
+- **Enter** starts the clock. Read the question on your screen.
+- **1–8** records which survey answer they gave, **0** for a pass, or type an answer that isn't on the list. Each answer jumps you to the next question while the clock keeps running, and the clock stops on its own after the 5th.
 - **D** plays the "already said that" buzzer.
-- **Space** reveals the next answer, then its points.
+- **Enter** or **Space** then reveals the next answer, then its points. Your screen shows the question again so you can say "When we asked…, you said…"
+- **T** pauses or restarts the clock if you need to.
 
-Reach 200 and the TV throws confetti.
+Reach 200 and the TV throws confetti. Fall short and it lets them down gently.
+
+**More than one round:** press **New Fast Money round** on the host screen to clear the answers and move to the next 10 questions. The sample set has two rounds. Load more questions in Setup for more rounds.
 
 ## Making your own questions with AI
 
@@ -68,7 +71,7 @@ Open **Setup** and use **Load a new question set**:
 1. Click **Copy prompt for Claude** and paste it into Claude (or another AI chat). Replace the bracketed part with your theme, inside jokes, or who's coming.
 2. Copy the whole reply, paste it into the box, and press **Load questions**.
 
-That loads 10 main game questions and 10 Fast Money questions in one go. You can also edit questions by hand in Setup. The format is a question line, then one answer per line ending with its points, with a blank line between questions:
+That loads 10 main game questions and 20 Fast Money questions (two Fast Money rounds) in one go. You can also edit questions by hand in Setup. The format is a question line, then one answer per line ending with its points, with a blank line between questions:
 
 ```
 Name something you bring to a tailgate
