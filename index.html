@@ -1,0 +1,1560 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta charset="utf-8">
+<title>Friendsgiving Feud</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bowlby+One&family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600&display=swap">
+<style>
+/* Layout: two views of one game. Board (TV): team columns flank a 2x4 answer board. Host (laptop): answer key + big controls. */
+:root{
+  --night:#1b0e15;
+  --wine:#3a1526;
+  --wine-2:#5a2038;
+  --amber:#f3a83b;
+  --cream:#fbf0dc;
+  --ember:#e5492b;
+  --teal:#5cc2ae;
+  --muted:#c3a9b3;
+  --line:rgba(243,168,59,.42);
+  --shade:rgba(10,4,8,.55);
+  --display:"Bowlby One","Arial Black",Impact,sans-serif;
+  --tile:"Barlow Condensed","Arial Narrow",sans-serif;
+  --body:"Barlow",system-ui,sans-serif;
+  color-scheme:dark;
+}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0}
+body{
+  background:radial-gradient(120% 90% at 50% 0%,var(--wine-2) 0%,var(--wine) 42%,var(--night) 100%) fixed,var(--night);
+  color:var(--cream);font-family:var(--body);overflow:hidden;
+}
+body.hostmode{overflow:auto}
+button{font:inherit;color:inherit}
+kbd{font-family:var(--tile);font-weight:700;font-size:.85em;background:var(--shade);border:1px solid var(--line);border-radius:5px;padding:0 .4em;color:var(--amber)}
+:focus-visible{outline:3px solid var(--teal);outline-offset:2px}
+
+.app{
+  height:100%;display:grid;grid-template-rows:auto minmax(0,1fr) auto;gap:clamp(8px,1.6vh,22px);
+  padding-block:clamp(10px,2vh,26px);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  max-width:1800px;margin:0 auto;box-sizing:border-box;
+}
+.mainview{display:grid;grid-template-rows:auto minmax(0,1fr);gap:clamp(8px,1.6vh,22px);min-height:0}
+
+/* Header */
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.logo{font-family:var(--display);font-size:clamp(20px,2.6vw,46px);line-height:1;color:var(--amber);letter-spacing:.01em;text-shadow:0 3px 0 var(--night)}
+.logo span{color:var(--cream)}
+.meta{display:flex;gap:10px;flex-wrap:wrap;font-family:var(--tile);font-weight:700;text-transform:uppercase;letter-spacing:.08em;font-size:clamp(13px,1.2vw,22px)}
+.chip{border:2px solid var(--line);border-radius:999px;padding:.2em .8em;background:var(--shade);white-space:nowrap}
+.chip.mult{color:var(--night);background:var(--amber);border-color:var(--amber)}
+
+/* Question */
+.qbar{
+  text-align:center;border-radius:16px;background:var(--shade);border:2px solid var(--line);
+  padding:clamp(10px,1.8vh,24px) clamp(12px,2vw,40px);min-height:clamp(54px,9vh,120px);
+  display:flex;flex-direction:column;justify-content:center;align-items:center;gap:6px;position:relative;
+}
+.qtext{font-family:var(--tile);font-weight:800;text-transform:uppercase;font-size:clamp(22px,3.2vw,60px);line-height:1.05;letter-spacing:.01em;text-wrap:balance}
+.qhint{font-size:clamp(13px,1.1vw,20px);color:var(--muted)}
+.live{position:absolute;top:10px;right:14px;font-family:var(--tile);font-weight:700;text-transform:uppercase;letter-spacing:.1em;font-size:clamp(11px,.9vw,16px);color:var(--teal);display:flex;align-items:center;gap:6px}
+.live::before{content:"";width:.7em;height:.7em;border-radius:50%;background:var(--teal);animation:blink 1s infinite}
+@keyframes blink{50%{opacity:.2}}
+
+/* Stage */
+.stage{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,3.6fr) minmax(0,1fr);gap:clamp(10px,1.6vw,30px);align-items:stretch;min-height:0}
+.team{
+  --tc:var(--amber);
+  border:3px solid var(--tc);border-radius:20px;background:var(--shade);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(4px,1vh,14px);
+  padding:clamp(10px,1.4vw,24px);text-align:center;min-width:0;transition:box-shadow .3s,transform .3s;
+}
+.team[data-t="1"]{--tc:var(--teal)}
+.team .name{font-family:var(--tile);font-weight:800;text-transform:uppercase;font-size:clamp(16px,1.9vw,36px);line-height:1;color:var(--tc);overflow-wrap:anywhere}
+.team .players{font-size:clamp(11px,1vw,18px);color:var(--muted);line-height:1.3;overflow-wrap:anywhere}
+.team .score{font-family:var(--display);font-size:clamp(40px,6.4vw,124px);line-height:1;font-variant-numeric:tabular-nums}
+.team .status{font-family:var(--tile);font-weight:800;text-transform:uppercase;letter-spacing:.1em;font-size:clamp(12px,1.1vw,20px);min-height:1.4em;color:var(--tc)}
+.team.control{box-shadow:0 0 0 4px var(--night),0 0 40px -4px var(--tc)}
+.team.buzzed{animation:buzzglow .6s ease-in-out 4}
+.team.steal .status{color:var(--ember)}
+@keyframes buzzglow{50%{box-shadow:0 0 0 6px var(--tc),0 0 90px 10px var(--tc);transform:scale(1.03)}}
+
+.boardwrap{display:flex;flex-direction:column;gap:clamp(8px,1.4vh,18px);min-height:0}
+.board{
+  flex:1;min-height:0;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:repeat(4,minmax(0,1fr));grid-auto-flow:column;
+  gap:clamp(6px,1vh,14px);padding:clamp(8px,1.2vw,20px);border-radius:22px;border:4px solid var(--amber);
+  background:var(--night);box-shadow:inset 0 0 50px var(--shade),0 10px 40px var(--shade);
+}
+.tile{perspective:900px;min-height:clamp(44px,8vh,120px);cursor:pointer;border:0;background:none;padding:0}
+.tile .inner{position:relative;width:100%;height:100%;transform-style:preserve-3d;transition:transform .65s cubic-bezier(.3,1.4,.5,1)}
+.tile.open .inner{transform:rotateX(180deg)}
+.face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:10px;display:flex;align-items:center;box-sizing:border-box}
+.front{background:linear-gradient(180deg,var(--wine-2),var(--wine));border:2px solid var(--line);justify-content:center}
+.front .num{font-family:var(--display);color:var(--amber);font-size:clamp(20px,2.6vw,48px);width:1.8em;height:1.8em;border-radius:50%;display:grid;place-items:center;border:3px solid var(--amber);background:var(--night);line-height:1}
+.back{transform:rotateX(180deg);background:var(--cream);color:var(--night);justify-content:space-between;gap:10px;padding-left:clamp(10px,1.2vw,22px);overflow:hidden}
+.back .ans{font-family:var(--tile);font-weight:800;text-transform:uppercase;font-size:clamp(16px,2.3vw,44px);line-height:1;min-width:0;overflow-wrap:anywhere}
+.back .pts{font-family:var(--display);background:var(--amber);align-self:stretch;display:grid;place-items:center;min-width:2.3em;font-size:clamp(18px,2.4vw,46px);font-variant-numeric:tabular-nums}
+.tile.empty{cursor:default}
+.tile.empty .front{background:var(--wine);opacity:.35}
+.tile.empty .num{display:none}
+
+.potrow{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.pot{display:flex;align-items:baseline;gap:12px;font-family:var(--tile);font-weight:800;text-transform:uppercase;letter-spacing:.08em;font-size:clamp(14px,1.3vw,24px);color:var(--muted)}
+.pot b{font-family:var(--display);font-weight:400;color:var(--amber);font-size:clamp(30px,3.6vw,68px);letter-spacing:0;font-variant-numeric:tabular-nums}
+.strikes{display:flex;gap:10px}
+.pip{width:clamp(30px,3vw,56px);height:clamp(30px,3vw,56px);border-radius:8px;border:3px solid var(--line);display:grid;place-items:center;font-family:var(--display);font-size:clamp(18px,2vw,38px);color:transparent;box-sizing:border-box}
+.pip.on{border-color:var(--ember);color:var(--ember);background:var(--shade)}
+
+/* Fast Money board */
+.fmview{display:grid;grid-template-rows:auto minmax(0,1fr) auto;gap:clamp(8px,1.6vh,22px);min-height:0}
+.fmhead{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:16px}
+.fmtitle{font-family:var(--display);font-size:clamp(26px,4vw,76px);line-height:1;color:var(--amber)}
+.fmteam{justify-self:end;text-align:right;font-family:var(--tile);font-weight:800;text-transform:uppercase;font-size:clamp(18px,2.4vw,46px);color:var(--tc,var(--amber));line-height:1}
+.fmteam small{display:block;font-size:.5em;color:var(--muted);letter-spacing:.1em;margin-top:4px}
+.timer{font-family:var(--display);font-size:clamp(44px,7vw,140px);line-height:1;width:1.7em;height:1.7em;border-radius:50%;display:grid;place-items:center;border:5px solid var(--amber);background:var(--night);font-variant-numeric:tabular-nums}
+.timer.low{border-color:var(--ember);color:var(--ember)}
+.timer.idle{opacity:.55}
+.fmgrid{display:grid;grid-template-columns:1fr 1fr;gap:clamp(8px,1.4vw,26px);padding:clamp(8px,1.2vw,20px);border:4px solid var(--amber);border-radius:22px;background:var(--night);min-height:0}
+.fmcol{display:grid;grid-template-rows:auto repeat(5,minmax(0,1fr));gap:clamp(6px,1vh,12px);min-height:0}
+.fmcol h4{margin:0;font-family:var(--tile);font-weight:800;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);font-size:clamp(13px,1.2vw,22px)}
+.fmcell{display:flex;align-items:stretch;border-radius:10px;overflow:hidden;background:var(--wine);border:2px solid var(--line);min-height:clamp(36px,7vh,96px)}
+.fmcell .t{flex:1;min-width:0;display:flex;align-items:center;padding:0 clamp(10px,1vw,20px);font-family:var(--tile);font-weight:800;text-transform:uppercase;font-size:clamp(16px,2.2vw,42px);line-height:1;overflow-wrap:anywhere}
+.fmcell .p{width:2.4em;display:grid;place-items:center;font-family:var(--display);font-size:clamp(18px,2.4vw,46px);background:var(--wine-2);font-variant-numeric:tabular-nums}
+.fmcell.txt .t{background:var(--cream);color:var(--night);animation:pop .35s ease-out}
+.fmcell.pts .p{background:var(--amber);color:var(--night);animation:pop .35s ease-out}
+.fmcell.covered{background:var(--wine-2);opacity:.6}
+@keyframes pop{0%{transform:scale(.92);opacity:.3}100%{transform:none;opacity:1}}
+.fmfoot{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+.fmtotal{font-family:var(--tile);font-weight:800;text-transform:uppercase;letter-spacing:.08em;font-size:clamp(16px,1.6vw,30px);color:var(--muted);display:flex;align-items:baseline;gap:12px}
+.fmtotal b{font-family:var(--display);font-weight:400;font-size:clamp(40px,5vw,96px);color:var(--amber);letter-spacing:0;font-variant-numeric:tabular-nums}
+.fmtotal.hit b{color:var(--teal)}
+.fmothers{font-family:var(--tile);font-weight:700;text-transform:uppercase;letter-spacing:.06em;font-size:clamp(14px,1.3vw,24px);color:var(--muted);display:flex;gap:18px;flex-wrap:wrap}
+
+/* Host strip (board only, hidden when the host screen is connected) */
+.host{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;opacity:.55;transition:opacity .2s}
+.host:hover,.host:focus-within{opacity:1}
+.host button{background:var(--shade);border:1px solid var(--line);border-radius:8px;padding:5px 9px;font-size:13px;cursor:pointer;display:flex;gap:6px;align-items:center;white-space:nowrap}
+.host button:hover{border-color:var(--amber)}
+.host .sep{width:1px;background:var(--line);margin:0 4px}
+.soundgate{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:16px;z-index:60;background:var(--amber);color:var(--night);border:0;border-radius:999px;padding:10px 18px;font-weight:600;cursor:pointer;box-shadow:0 8px 30px var(--shade)}
+
+/* Overlays */
+.xover{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;gap:2vw;pointer-events:none;z-index:30}
+.xover .x{font-family:var(--display);font-size:min(34vw,46vh);line-height:.8;color:var(--ember);-webkit-text-stroke:min(1vw,1.2vh) var(--cream);paint-order:stroke fill;animation:xpop .9s ease-out both;text-shadow:0 10px 40px var(--shade)}
+@keyframes xpop{0%{transform:scale(2.4);opacity:0}18%{transform:scale(1);opacity:1}80%{opacity:1}100%{opacity:0}}
+.banner{position:fixed;left:50%;top:22%;transform:translateX(-50%);z-index:25;pointer-events:none;
+  font-family:var(--display);font-size:clamp(28px,5.4vw,104px);line-height:1;text-align:center;padding:.35em .7em;border-radius:24px;
+  background:var(--night);border:5px solid var(--tc,var(--amber));color:var(--tc,var(--amber));box-shadow:0 20px 80px var(--shade);animation:bpop 2.2s ease-out both;width:max-content;max-width:90vw}
+@keyframes bpop{0%{transform:translate(-50%,-30px) scale(.6);opacity:0}12%{transform:translate(-50%,0) scale(1);opacity:1}82%{opacity:1}100%{opacity:0}}
+
+.result{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:35;pointer-events:none;text-align:center;
+  background:var(--night);border:6px solid var(--tc);border-radius:28px;padding:4vh 5vw;box-shadow:0 0 0 8px var(--night),0 0 120px 10px var(--tc);
+  display:grid;gap:1.4vh;width:max-content;max-width:88vw;animation:rpop 5.2s ease-out both}
+.result .rk{font-family:var(--tile);font-weight:800;text-transform:uppercase;letter-spacing:.14em;font-size:clamp(18px,2.4vw,44px);color:var(--muted)}
+.result .rh{font-family:var(--display);font-size:clamp(36px,6.6vw,130px);line-height:.95;color:var(--tc);text-wrap:balance}
+.result .rs{font-family:var(--tile);font-weight:700;text-transform:uppercase;letter-spacing:.06em;font-size:clamp(18px,2.6vw,48px);color:var(--cream)}
+@keyframes rpop{0%{transform:translate(-50%,-50%) scale(.5);opacity:0}8%{transform:translate(-50%,-50%) scale(1.04);opacity:1}12%{transform:translate(-50%,-50%) scale(1)}88%{opacity:1}100%{opacity:0}}
+canvas.party{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:36}
+.win{position:fixed;inset:0;z-index:40;background:var(--shade);backdrop-filter:blur(6px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2vh;text-align:center;padding:20px}
+.win canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.win h2{margin:0;font-family:var(--display);font-weight:400;font-size:clamp(40px,8vw,160px);line-height:.95;color:var(--tc,var(--amber));text-wrap:balance;position:relative}
+.win p{margin:0;font-family:var(--tile);font-weight:700;text-transform:uppercase;letter-spacing:.08em;font-size:clamp(16px,2vw,36px);position:relative}
+.win .row{display:flex;gap:10px;position:relative;flex-wrap:wrap;justify-content:center}
+
+.btn{background:var(--amber);color:var(--night);border:0;border-radius:10px;padding:10px 16px;font-weight:600;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--cream);border:1px solid var(--line)}
+.btn.danger{background:var(--ember);color:var(--cream)}
+
+/* Host screen */
+.hv{max-width:1400px;margin:0 auto;display:grid;gap:14px;box-sizing:border-box;
+  padding-block:16px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.hvtop{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.hvtop .logo{font-size:26px;margin-right:auto}
+.seg{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{background:transparent;border:0;padding:8px 14px;cursor:pointer;font-weight:600}
+.seg button.on{background:var(--amber);color:var(--night)}
+.nolink{border:2px solid var(--ember);background:var(--shade);border-radius:14px;padding:14px 16px;line-height:1.5;font-size:15px}
+.nolink b{display:block;color:var(--ember);font-size:17px;margin-bottom:4px}
+.nolink code{color:var(--amber)}
+.seglab{align-self:center;padding:0 10px;font-size:13px;color:var(--muted)}
+.sync{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.sync::before{content:"";width:.7em;height:.7em;border-radius:50%;background:var(--ember)}
+.sync.ok::before{background:var(--teal)}
+.hb{background:var(--shade);border:1px solid var(--line);border-radius:10px;padding:9px 14px;cursor:pointer;font-weight:600;display:inline-flex;gap:8px;align-items:center;justify-content:center}
+.hb:hover{border-color:var(--amber)}
+.hb.big{padding:14px 18px;font-size:17px}
+.hb.go{background:var(--amber);color:var(--night);border-color:var(--amber)}
+.hb.go kbd{color:var(--night);border-color:var(--night);background:transparent}
+.hb.bad{background:var(--ember);border-color:var(--ember)}
+.hb.t0{border-color:var(--amber);color:var(--amber)}
+.hb.t1{border-color:var(--teal);color:var(--teal)}
+.hb.on{outline:3px solid var(--cream)}
+.hb:disabled{opacity:.4;cursor:default}
+.hvgrid{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(0,1fr);gap:16px;align-items:start}
+.hvcol{display:grid;gap:12px;min-width:0}
+.box{background:var(--shade);border:1px solid var(--line);border-radius:14px;padding:14px;display:grid;gap:10px;min-width:0}
+.hvmeta{font-family:var(--tile);font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);font-size:14px;display:flex;gap:12px;flex-wrap:wrap}
+.hvqtext{font-family:var(--tile);font-weight:800;text-transform:uppercase;font-size:clamp(20px,2.4vw,32px);line-height:1.1;text-wrap:balance}
+.hvqtext.off{color:var(--muted)}
+.hvbuzz{font-family:var(--tile);font-weight:800;text-transform:uppercase;letter-spacing:.06em;font-size:20px;padding:10px 14px;border-radius:12px;border:2px dashed var(--line);color:var(--muted)}
+.hvbuzz.armed{border-style:solid;border-color:var(--teal);background:var(--teal);color:var(--night);font-size:30px;animation:armedpulse 1.1s ease-in-out infinite}
+@keyframes armedpulse{50%{box-shadow:0 0 0 5px var(--night),0 0 36px 6px var(--teal)}}
+/* Team that buzzed in lights up on the host screen */
+.tcard.buzzed{background:var(--amber);color:var(--night);box-shadow:0 0 0 3px var(--amber),0 0 40px 4px var(--amber);animation:hostglow .7s ease-in-out 3}
+.tcard[data-t="1"].buzzed{background:var(--teal);box-shadow:0 0 0 3px var(--teal),0 0 40px 4px var(--teal)}
+.tcard.buzzed .st{color:var(--night);font-family:var(--tile);font-weight:800;text-transform:uppercase;letter-spacing:.08em;font-size:18px}
+.tcard.buzzed .hb{background:var(--night);color:var(--cream);border-color:var(--night)}
+@keyframes hostglow{50%{transform:scale(1.03)}}
+/* Buzzers armed: both team cards glow in their own color until someone buzzes */
+.tcard.armed{--tc:var(--amber);border-color:var(--tc);box-shadow:0 0 0 3px var(--tc);animation:armedcard 1.1s ease-in-out infinite}
+.tcard[data-t="1"].armed{--tc:var(--teal)}
+.tcard.armed .st{color:var(--tc);font-family:var(--tile);font-weight:800;text-transform:uppercase;letter-spacing:.08em;font-size:18px}
+@keyframes armedcard{50%{box-shadow:0 0 0 3px var(--tc),0 0 34px 6px var(--tc)}}
+.hvbuzz.t0{border-style:solid;border-color:var(--amber);background:var(--amber);color:var(--night)}
+.hvbuzz.t1{border-style:solid;border-color:var(--teal);background:var(--teal);color:var(--night)}
+.hvbuzz{display:grid;gap:10px}
+.hvbuzz.steal{border-style:solid;border-color:var(--ember);color:var(--cream);background:var(--shade)}
+.hvbuzz .hb{font-family:var(--body);text-transform:none;letter-spacing:0;font-size:16px;color:var(--cream);background:var(--night)}
+.hvbuzz .hb.go{background:var(--cream);color:var(--night);border-color:var(--cream)}
+.hvbuzz .hb.go kbd{color:var(--night);border-color:var(--night);background:transparent}
+.ans{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.ans button{width:100%;display:grid;grid-template-columns:2.2em minmax(0,1fr) 3em 6.5em;align-items:center;gap:12px;text-align:left;padding:8px 12px;border-radius:10px;border:2px solid var(--line);background:var(--wine);cursor:pointer;font-size:20px}
+.ans button:hover{border-color:var(--amber)}
+.ans .n{font-family:var(--display);color:var(--amber);font-size:22px}
+.ans .a{font-family:var(--tile);font-weight:800;text-transform:uppercase;overflow-wrap:anywhere}
+.ans .p{font-family:var(--display);text-align:right;font-variant-numeric:tabular-nums}
+.ans .s{font-size:13px;color:var(--muted);text-align:right}
+.ans button.done{background:transparent;opacity:.55}
+.ans button.done .s{color:var(--teal)}
+.ans button.done .a{text-decoration:line-through;text-decoration-thickness:2px}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.row>.hb{flex:1 1 auto}
+.tcard{border-left:6px solid var(--amber)}
+.tcard[data-t="1"]{border-left-color:var(--teal)}
+.tcard .nm{font-family:var(--tile);font-weight:800;text-transform:uppercase;font-size:20px}
+.tcard .sc{font-family:var(--display);font-size:44px;line-height:1;font-variant-numeric:tabular-nums}
+.tcard .st{font-size:13px;color:var(--muted);min-height:1.2em}
+.potbox .big{font-family:var(--display);font-size:48px;line-height:1;color:var(--amber);font-variant-numeric:tabular-nums}
+.help{font-size:14px;color:var(--muted);line-height:1.5;margin:0}
+.help code,.help b{color:var(--cream)}
+.hvtimer{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+#hvTimer{font-family:var(--display);font-size:52px;line-height:1;min-width:1.6em;font-variant-numeric:tabular-nums}
+.pick{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px}
+.pick button{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:12px;border-radius:10px;border:2px solid var(--line);background:var(--wine);cursor:pointer;font-family:var(--tile);font-weight:800;text-transform:uppercase;font-size:19px;text-align:left}
+.pick button:hover{border-color:var(--amber)}
+.pick button span:last-child{font-family:var(--display);color:var(--amber);font-weight:400}
+.pick button kbd{margin-right:6px}
+.slots{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.slots button{width:100%;display:grid;grid-template-columns:2em minmax(0,1fr) 2.6em 4.6em;gap:8px;align-items:center;padding:8px 10px;border-radius:10px;border:2px solid var(--line);background:var(--wine);cursor:pointer;text-align:left}
+.slots button.cur{border-color:var(--cream)}
+.slots .a{font-family:var(--tile);font-weight:800;text-transform:uppercase;font-size:18px;overflow-wrap:anywhere}
+.slots .a.empty{color:var(--muted);font-weight:600;text-transform:none;font-family:var(--body);font-size:14px}
+.slots .qa{display:grid;gap:2px;min-width:0}
+.slots .qq{font-size:13px;color:var(--muted);line-height:1.25;overflow-wrap:anywhere}
+.hvqtext .said{margin-top:8px;font-size:.8em;color:var(--amber)}
+.slots .p{font-family:var(--display);text-align:right}
+.slots .s{font-size:12px;color:var(--muted);text-align:right}
+input,textarea{background:var(--wine);color:var(--cream);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit;font-size:15px;min-width:0}
+.other{flex:1 1 220px}
+
+/* Setup */
+.setup{position:fixed;inset:0;z-index:50;background:var(--shade);backdrop-filter:blur(8px);display:flex;justify-content:center;align-items:flex-start;overflow:auto;padding:4vh 16px;box-sizing:border-box}
+.panel{background:var(--night);border:2px solid var(--line);border-radius:18px;padding:22px;width:min(980px,100%);box-sizing:border-box;display:grid;gap:18px}
+.panel h2{margin:0;font-family:var(--display);font-weight:400;color:var(--amber);font-size:28px}
+.panel h3{margin:0 0 8px;font-family:var(--tile);font-weight:800;text-transform:uppercase;letter-spacing:.08em;font-size:17px;color:var(--muted)}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+.card{border:1px solid var(--line);border-radius:12px;padding:14px;display:grid;gap:10px;min-width:0}
+.card[data-t="0"]{border-left:5px solid var(--amber)}
+.card[data-t="1"]{border-left:5px solid var(--teal)}
+label{display:grid;gap:4px;font-size:13px;color:var(--muted)}
+textarea{font-family:ui-monospace,Menlo,monospace;font-size:13px;line-height:1.5;min-height:220px;resize:vertical;width:100%;box-sizing:border-box}
+.importbox{border:2px solid var(--amber);border-radius:14px;padding:14px;display:grid;gap:10px}
+.importbox #importBox{min-height:140px}
+.importbox #promptText{min-height:200px}
+.keyrow{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.keycap{font-family:var(--tile);font-weight:800;font-size:20px;min-width:2.4em;text-align:center;padding:4px 10px;border-radius:8px;border:2px solid var(--line);background:var(--wine)}
+.keycap.lit{border-color:var(--teal);background:var(--teal);color:var(--night)}
+.keycap.listen{border-color:var(--amber);animation:blink .8s infinite}
+.warn{color:var(--amber);font-size:13px}
+.actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;align-items:center}
+.keys{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:6px 18px;font-size:14px;color:var(--muted)}
+.keys div{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+
+@media (max-width:860px){
+  .hvgrid{grid-template-columns:1fr}
+}
+@media (max-width:760px){
+  body{overflow:auto}
+  .app{height:auto;min-height:100%}
+  .stage{grid-template-columns:1fr 1fr}
+  .boardwrap{grid-column:1/-1;order:-1}
+  .board{grid-template-columns:1fr;grid-template-rows:none;grid-auto-flow:row}
+  .tile{height:52px}
+  .fmgrid{grid-template-columns:1fr}
+  .fmhead{grid-template-columns:1fr auto}
+  .fmteam{grid-column:1/-1;justify-self:start;text-align:left}
+  .ans button{grid-template-columns:2em minmax(0,1fr) 2.6em;font-size:17px}
+  .ans .s{display:none}
+}
+@media (prefers-reduced-motion:reduce){
+  .tile .inner{transition:none}
+  .team.buzzed,.live::before,.keycap.listen,.hvbuzz.armed,.tcard.buzzed,.tcard.armed,.fmcell .t,.fmcell .p{animation:none}
+  .xover .x,.banner{animation-duration:2.2s;animation-name:fadeonly}
+  .result{animation-duration:5.2s;animation-name:fadeonly}
+  @keyframes fadeonly{0%,85%{opacity:1}100%{opacity:0}}
+}
+</style>
+</head>
+<body>
+<!-- ============ BOARD (TV) ============ -->
+<div class="app" id="app">
+  <header class="top">
+    <div class="logo">Friendsgiving <span>Feud</span></div>
+    <div class="meta" id="boardMeta">
+      <span class="chip" id="roundChip">Round 1 of 10</span>
+      <span class="chip mult" id="multChip">Single points</span>
+      <span class="chip" id="targetChip">First to 300</span>
+    </div>
+  </header>
+
+  <div class="mainview" id="mainView">
+    <section class="qbar" aria-live="polite">
+      <div class="live" id="live" hidden>Buzzers live</div>
+      <div class="qtext" id="qtext">Round 1</div>
+      <div class="qhint" id="qhint">Host: press Enter to show the question</div>
+    </section>
+    <main class="stage">
+      <section class="team" data-t="0" id="team0">
+        <div class="name"></div><div class="players"></div><div class="score">0</div><div class="status"></div>
+      </section>
+      <section class="boardwrap">
+        <div class="board" id="board"></div>
+        <div class="potrow">
+          <div class="pot">Round pot <b id="pot">0</b></div>
+          <div class="strikes" id="strikes"><div class="pip">X</div><div class="pip">X</div><div class="pip">X</div></div>
+        </div>
+      </section>
+      <section class="team" data-t="1" id="team1">
+        <div class="name"></div><div class="players"></div><div class="score">0</div><div class="status"></div>
+      </section>
+    </main>
+  </div>
+
+  <section class="fmview" id="fmView" hidden>
+    <div class="fmhead">
+      <div class="fmtitle">Fast Money</div>
+      <div class="timer idle" id="fmTimer">20</div>
+      <div class="fmteam" id="fmTeam"></div>
+    </div>
+    <div class="fmgrid" id="fmGrid"></div>
+    <div class="fmfoot">
+      <div class="fmtotal" id="fmTotalBox">Total <b id="fmTotal">0</b> <span id="fmGoal">Goal 200</span></div>
+      <div class="fmothers" id="fmOthers"></div>
+    </div>
+  </section>
+
+  <nav class="host" id="host" aria-label="Host controls">
+    <button data-a="showQ"><kbd>Enter</kbd> Show question</button>
+    <button data-a="rearm"><kbd>R</kbd> Re-arm buzzers</button>
+    <button data-a="strike"><kbd>X</kbd> Strike</button>
+    <span class="sep"></span>
+    <button data-a="ctl0"><kbd>←</kbd> Left plays</button>
+    <button data-a="ctl1"><kbd>→</kbd> Right plays</button>
+    <button data-a="award0"><kbd>[</kbd> Pot to left</button>
+    <button data-a="award1"><kbd>]</kbd> Pot to right</button>
+    <span class="sep"></span>
+    <button data-a="prev"><kbd>P</kbd> Prev</button>
+    <button data-a="next"><kbd>N</kbd> Next round</button>
+    <button data-a="undo"><kbd>U</kbd> Undo</button>
+    <span class="sep"></span>
+    <button data-a="toggleMode" id="modeBtn">Fast Money</button>
+    <button data-a="setup"><kbd>S</kbd> Setup</button>
+    <button data-a="full"><kbd>F</kbd> Fullscreen</button>
+    <button data-a="mute" id="muteBtn"><kbd>M</kbd> Sound on</button>
+  </nav>
+</div>
+
+<button class="soundgate" id="soundGate" hidden>Click once to turn on sound</button>
+<div class="xover" id="xover"></div>
+
+<div class="win" id="win" hidden>
+  <canvas id="confetti"></canvas>
+  <p id="winSub">First to 300</p>
+  <h2 id="winTitle">Team wins!</h2>
+  <p id="winScore"></p>
+  <div class="row">
+    <button class="btn ghost" id="winKeep">Keep playing</button>
+    <button class="btn" id="winFm">On to Fast Money</button>
+  </div>
+</div>
+
+<!-- ============ HOST SCREEN (laptop) ============ -->
+<div class="hv" id="hostView" hidden>
+  <header class="hvtop">
+    <div class="logo">Host <span>screen</span></div>
+    <div class="seg" role="group" aria-label="What the TV shows"><span class="seglab">On the TV:</span><button data-h="modeMain" id="segMain">Main game</button><button data-h="modeFm" id="segFm">Fast Money</button></div>
+    <span class="sync" id="sync">TV board not connected</span>
+    <button class="hb" data-h="mute" id="hvMute"></button>
+    <button class="hb" data-h="hostNewGame" id="hvNew">New game</button>
+    <button class="hb" data-h="setup">Setup <kbd>S</kbd></button>
+  </header>
+  <div class="nolink" id="noLink" hidden>
+    <b>The TV window isn't connected, so nothing you do here shows on the TV.</b>
+    Open both windows in the same browser (Chrome), not one in the Claude app and one in Chrome. Board: the game link. Host: the same link ending in <code>#host</code>. If both are already in Chrome, refresh the TV window with Cmd+R.
+  </div>
+
+  <!-- Main game -->
+  <section id="hvMain">
+    <div class="hvgrid">
+      <div class="hvcol">
+        <div class="box">
+          <div class="hvmeta" id="hvRound"></div>
+          <div class="hvqtext" id="hvQ"></div>
+        </div>
+        <div class="hvbuzz" id="hvBuzz"></div>
+        <ol class="ans" id="hvAns"></ol>
+        <div class="row">
+          <button class="hb big go" data-h="showQ">Show question <kbd>Enter</kbd></button>
+          <button class="hb big bad" data-h="strike">Strike <kbd>X</kbd></button>
+          <button class="hb big" data-h="rearm">Re-arm buzzers <kbd>R</kbd></button>
+        </div>
+        <div class="row">
+          <button class="hb" data-h="prev">Prev round <kbd>P</kbd></button>
+          <button class="hb" data-h="next">Next round <kbd>N</kbd></button>
+          <button class="hb" data-h="undo">Undo <kbd>U</kbd></button>
+        </div>
+      </div>
+      <div class="hvcol">
+        <div class="box potbox">
+          <div class="hvmeta"><span>Round pot</span><span id="hvMult"></span></div>
+          <div class="big" id="hvPot">0</div>
+          <div class="strikes" id="hvStrikes"><div class="pip">X</div><div class="pip">X</div><div class="pip">X</div></div>
+        </div>
+        <div id="hvTeams" class="hvcol"></div>
+        <div class="box" id="hvWin" hidden></div>
+        <div class="box">
+          <p class="help"><b>Keys:</b> <kbd>1</kbd>–<kbd>8</kbd> flip an answer, <kbd>←</kbd> <kbd>→</kbd> pick who plays, <kbd>[</kbd> <kbd>]</kbd> give the pot. During the face-off, <kbd>X</kbd> shows one X without counting it.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Fast Money -->
+  <section id="hvFm" hidden>
+    <div class="hvgrid">
+      <div class="hvcol">
+        <div class="box">
+          <div class="row" id="fmTabs"></div>
+          <div class="hvtimer">
+            <div class="big" id="hvTimer">20</div>
+            <button class="hb big go" data-h="fmTimer" id="hvTimerBtn">Start <kbd>T</kbd></button>
+            <button class="hb" data-h="fmTimerReset">Reset timer</button>
+          </div>
+        </div>
+        <div class="box">
+          <div class="hvmeta" id="fmQmeta"></div>
+          <div class="hvqtext" id="fmQtext"></div>
+          <div class="pick" id="fmPick"></div>
+          <div class="row">
+            <input class="other" id="fmOther" placeholder="Not on the list? Type it, press Enter (0 points)">
+            <button class="hb" data-h="fmNone">No answer / pass <kbd>0</kbd></button>
+            <button class="hb bad" data-h="fmDup">Duplicate <kbd>D</kbd></button>
+          </div>
+        </div>
+      </div>
+      <div class="hvcol">
+        <div class="box">
+          <div class="hvmeta" id="fmSlotsHead"></div>
+          <ol class="slots" id="fmSlots"></ol>
+          <div class="row">
+            <button class="hb big go" data-h="fmReveal">Reveal next <kbd>Space</kbd></button>
+            <button class="hb" data-h="fmResult">Show result</button>
+            <button class="hb" data-h="fmUncover" id="fmUncoverBtn"></button>
+          </div>
+        </div>
+        <div class="box" id="fmTotals"></div>
+        <div class="row">
+          <button class="hb" data-h="undo">Undo <kbd>U</kbd></button>
+          <button class="hb" data-h="modeMain">Back to main game</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="box">
+    <p class="help"><b>Two screens:</b> set the TV as an extended display. Open this game's link without <code>#host</code> on the TV, click it once to turn on sound, press <kbd>F</kbd> for fullscreen, then click back on this window so your keys and the buzzers land here. Keep this window at the end of the link with <code>#host</code>.</p>
+  </div>
+</div>
+
+<!-- ============ SETUP (both views) ============ -->
+<div class="setup" id="setup" hidden>
+  <div class="panel" role="dialog" aria-labelledby="setupTitle">
+    <h2 id="setupTitle">Setup</h2>
+    <div class="cols" id="teamCards"></div>
+
+    <div>
+      <h3>Game</h3>
+      <div class="cols">
+        <label>Points to win<input id="target" type="number" min="50" step="50"></label>
+        <label>Fast Money goal<input id="fmGoalIn" type="number" min="50" step="10"></label>
+      </div>
+      <p class="help" style="margin-top:8px">Rounds 1 to 3 are single points, rounds 4 and 5 double, round 6 and later triple. Fast Money: player 1 gets 20 seconds, player 2 gets 25.</p>
+    </div>
+
+    <div class="importbox">
+      <h3>Load a new question set</h3>
+      <p class="help"><b>1.</b> Copy the prompt and paste it into Claude. Replace the bracketed part with your ideas (a theme, inside jokes, who's coming). <b>2.</b> Copy Claude's whole reply, paste it in the box below, and press <b>Load questions</b>. It replaces both the main game and Fast Money questions and goes back to round 1. Scores stay until you start a new game.</p>
+      <div class="actions" style="justify-content:flex-start">
+        <button class="btn ghost" id="copyPrompt">Copy prompt for Claude</button>
+        <span class="help" id="copyMsg"></span>
+      </div>
+      <textarea id="promptText" readonly hidden></textarea>
+      <textarea id="importBox" spellcheck="false" placeholder="Paste Claude's reply here (it starts with === MAIN GAME ===)"></textarea>
+      <div class="actions">
+        <span class="help" id="importMsg" style="margin-right:auto"></span>
+        <button class="btn" id="importGo">Load questions</button>
+      </div>
+    </div>
+
+    <div>
+      <h3>Main game questions</h3>
+      <p class="help">One question per block, blank line between blocks. First line is the question, then up to 8 answers, each ending in its points, like <code>Take a nap 35</code>. The survey numbers are made up, so edit freely.</p>
+      <textarea id="qedit" spellcheck="false"></textarea>
+    </div>
+    <div>
+      <h3>Fast Money questions</h3>
+      <p class="help">Same format. The first 5 are for the left team, the next 5 for the right team, so nobody hears their questions ahead of time.</p>
+      <textarea id="fmedit" spellcheck="false"></textarea>
+    </div>
+    <div class="actions">
+      <span class="help" id="qcount" style="margin-right:auto"></span>
+      <button class="btn ghost" id="qreset">Restore sample questions</button>
+      <button class="btn" id="qsave">Save questions</button>
+    </div>
+
+    <div>
+      <h3>Host screen</h3>
+      <p class="help">Open this game's link a second time and add <code>#host</code> to the end. That window shows every answer and the controls; the TV window follows along. Both need to be in the same browser on the same laptop.</p>
+    </div>
+
+    <div class="actions">
+      <button class="btn danger" id="newGame">New game (scores to 0)</button>
+      <button class="btn" id="closeSetup">Done</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SAMPLE_Q = `Name something people do right after Thanksgiving dinner
+Take a nap 35
+Watch football 23
+Eat more dessert 15
+Do the dishes 10
+Unbutton their pants 7
+Play a game 5
+
+Name a Thanksgiving side dish
+Mashed potatoes 34
+Stuffing 26
+Green bean casserole 13
+Cranberry sauce 10
+Sweet potatoes 8
+Mac and cheese 5
+
+Name something you'd find in a junk drawer
+Batteries 28
+Rubber bands 20
+Pens 17
+Takeout menus 12
+Tape 9
+Random keys 7
+
+Name something people lose all the time
+Keys 41
+Phone 22
+TV remote 14
+Glasses 9
+Wallet 7
+
+Name a reason you might leave a party early
+Tired 33
+Babysitter 22
+Work tomorrow 16
+Feeling sick 11
+It's boring 8
+Bad weather 5
+
+Name something you'd hear at a rock concert
+Guitar solo 30
+Screaming fans 25
+Drums 17
+Encore chant 10
+Feedback squeal 7
+Someone yelling Free Bird 6
+
+Name something a dog might chew up
+Shoes 44
+Socks 18
+TV remote 12
+Pillow 9
+Kids' toys 8
+Homework 5
+
+Name a kind of pie
+Apple 38
+Pumpkin 27
+Pecan 12
+Cherry 10
+Blueberry 6
+Key lime 4
+
+Name something people put off doing
+Taxes 26
+Laundry 21
+Dishes 15
+Exercising 13
+Going to the dentist 10
+Cleaning the garage 7
+
+Name something you'd see at a Black Friday sale
+Long lines 36
+TVs 22
+People fighting 15
+Doorbusters 11
+Overflowing carts 8`;
+
+const SAMPLE_FM = `Name something you put on a baked potato
+Butter 34
+Sour cream 28
+Cheese 15
+Bacon bits 9
+Chives 6
+Salt 4
+
+Name a reason you'd call in sick to work
+Flu 32
+Cold 24
+Fever 14
+Hangover 11
+Sick kid 9
+Migraine 5
+
+Name something you bring to the beach
+Towel 35
+Sunscreen 27
+Chair 12
+Umbrella 10
+Cooler 8
+Book 4
+
+Name a sport that uses a net
+Tennis 30
+Volleyball 26
+Basketball 18
+Soccer 12
+Hockey 8
+Badminton 4
+
+Name something you'd see at a birthday party
+Cake 45
+Balloons 22
+Presents 15
+Candles 9
+Party hats 5
+
+Name something people do to stay warm in winter
+Wear a coat 31
+Drink hot cocoa 20
+Sit by a fire 17
+Use a blanket 14
+Turn up the heat 11
+Cuddle 4
+
+Name a famous rock band
+The Beatles 30
+Rolling Stones 22
+Queen 15
+Led Zeppelin 12
+AC/DC 9
+Aerosmith 6
+Tool 3
+
+Name something in a kitchen drawer
+Forks 33
+Knives 25
+Spoons 18
+Spatula 10
+Can opener 7
+Measuring cups 4
+
+Name a farm animal
+Cow 38
+Pig 24
+Horse 14
+Chicken 12
+Sheep 7
+Goat 4
+
+Name something you do before bed
+Brush teeth 42
+Put on pajamas 18
+Read 13
+Set an alarm 10
+Lock the doors 8
+Pray 5`;
+
+const STORE='friendsgiving-feud-v1';
+const BUILD=20; // bump on every publish so the host can spot a TV window running old code
+let tvMode=null,tvBuild=null;
+const HOST_KEYS=new Set(['Enter','Space','KeyX','KeyR','KeyT','KeyD','ArrowLeft','ArrowRight','ArrowUp','ArrowDown','BracketLeft','BracketRight','KeyN','KeyP','KeyU','KeyS','KeyF','KeyM','Backspace','Digit0','Digit1','Digit2','Digit3','Digit4','Digit5','Digit6','Digit7','Digit8','Numpad0','Numpad1','Numpad2','Numpad3','Numpad4','Numpad5','Numpad6','Numpad7','Numpad8']);
+
+function blankSlots(){return Array.from({length:5},()=>({t:'',p:0,set:false,st:0}))}
+function freshFM(){return {team:0,player:0,q:0,showBoth:false,goal:200,timer:{running:false,endsAt:0,left:20},slots:[[blankSlots(),blankSlots()],[blankSlots(),blankSlots()]]}}
+function freshState(){
+  return {
+    v:0,mode:'main',
+    teams:[
+      {name:'Team Turkey',players:'',score:0,key:'KeyZ',keyLabel:'Z'},
+      {name:'Team Stuffing',players:'',score:0,key:'Slash',keyLabel:'/'}
+    ],
+    qtext:SAMPLE_Q,fmtext:SAMPLE_FM,target:300,round:0,muted:false,
+    shown:false,revealed:[],strikes:0,pot:0,control:null,awarded:false,armed:false,buzzed:null,over:false,
+    fm:freshFM()
+  };
+}
+let S=freshState();
+let Q=[],FMQ=[];
+let hist=[];
+let builtKey=null;
+let learning=null;
+let setupOpen=false;
+let VIEW=location.hash==='#host'?'host':'board';
+let lastPing=0, hostSeen=0;
+const shownScore=[0,0];
+const $=id=>document.getElementById(id);
+
+function parseQ(text){
+  return (text||'').split(/\n\s*\n/)
+    .map(b=>b.split('\n').map(l=>l.trim()).filter(Boolean))
+    .filter(b=>b.length>=2)
+    .map(b=>({q:b[0],answers:b.slice(1,9).map(l=>{
+      const m=l.match(/^(.*?)[\s|,:-]+(\d+)$/);
+      return m?{t:m[1].trim(),p:+m[2]}:{t:l,p:0};
+    })}));
+}
+function mult(r){return r<3?1:r<5?2:3}
+function multName(r){return ['','Single','Double','Triple'][mult(r)]+' points'}
+function cur(){return Q[S.round]}
+function fmQs(t){const n=FMQ.length;if(!n)return[];const out=[];for(let i=0;i<5;i++)out.push(FMQ[(t*5+i)%n]);return out}
+function fmTotal(t){let s=0;for(const pl of S.fm.slots[t])for(const x of pl)if(x.st===2)s+=x.p;return s}
+function fmPlayed(t){return S.fm.slots[t].some(pl=>pl.some(x=>x.set))}
+// Footer label per team: the selected team is playing now; the other is either done (with points) or up next.
+function fmStatus(i){
+  const n=S.teams[i].name;
+  if(i===S.fm.team)return `${n}: playing now · ${fmTotal(i)}`;
+  if(fmPlayed(i))return `${n}: done · ${fmTotal(i)}`;
+  return `${n}: up next`;
+}
+function teamColor(t){return t===1?'var(--teal)':t===0?'var(--amber)':'var(--ember)'}
+
+/* ---------- Sync between the TV window and the host window ---------- */
+function save(){try{localStorage.setItem(STORE,JSON.stringify(S))}catch(e){}}
+function load(){try{const r=localStorage.getItem(STORE);return r?JSON.parse(r):null}catch(e){return null}}
+let bc=null;try{bc=new BroadcastChannel('friendsgiving-feud')}catch(e){}
+function send(m){m.from=VIEW;try{bc&&bc.postMessage(m)}catch(e){}}
+function receive(m){
+  if(!m)return;
+  if(m.from==='host')hostSeen=Date.now();
+  if(m.type==='ping'){
+    if(m.from==='board'){lastPing=Date.now();tvMode=m.mode||null;tvBuild=m.build||null}
+    // The host screen is the boss: the TV follows its full game state on every heartbeat.
+    if(m.from==='host'&&VIEW==='board'&&m.S&&JSON.stringify(m.S)!==JSON.stringify(S)){S=m.S;render()}
+    return;
+  }
+  if(m.type==='hello'){send({type:'state',S,reply:true});return}
+  if(m.type==='state'&&m.S){
+    // A reply to "hello" only wins if it is newer; a live action always wins.
+    if(m.reply&&(m.S.v||0)<(S.v||0))return;
+    S=m.S;render();
+  }
+  if(m.fx)playFx(m.fx);
+}
+if(bc)bc.onmessage=e=>receive(e.data);
+// Backup path: every save also lands in shared storage, so the TV can follow even if a broadcast is missed.
+window.addEventListener('storage',e=>{
+  if(e.key===STORE&&e.newValue&&VIEW==='board'){try{const n=JSON.parse(e.newValue);if(JSON.stringify(n)!==JSON.stringify(S)){S=n;render()}}catch(x){}}
+  if(!bc&&e.key===STORE+'-fx'&&e.newValue){try{receive(JSON.parse(e.newValue))}catch(x){}}
+});
+function broadcast(fx){
+  if(bc)send({type:'state',S,fx});
+  else if(fx){try{localStorage.setItem(STORE+'-fx',JSON.stringify({type:'fx',fx,n:Date.now()}))}catch(e){}}
+}
+function act(fn,fx){
+  hist.push(JSON.stringify(S));if(hist.length>120)hist.shift();
+  const v=S.v||0;fn();S.v=v+1;
+  save();render();broadcast(typeof fx==='function'?fx():fx);
+  if(fx)playFx(fx);
+}
+function sync(){S.v=(S.v||0)+1;save();render();broadcast(null)}
+function fxOnly(fx){playFx(fx);if(bc)send({type:'fx',fx});else{try{localStorage.setItem(STORE+'-fx',JSON.stringify({type:'fx',fx,n:Date.now()}))}catch(e){}}}
+function resetRound(){Object.assign(S,{shown:false,revealed:[],strikes:0,pot:0,control:null,awarded:false,awardedTo:null,armed:false,buzzed:null,stealBy:null,stole:false})}
+// Hand the round pot to a team (call inside act). Marks it as a steal when the stealing team gets it.
+function givePot(t){
+  const before=S.teams[t].score;
+  S.stole=S.stealBy===t;
+  S.teams[t].score+=S.pot;S.awarded=true;S.awardedTo=t;S.armed=false;S.stealBy=null;
+  if(before<S.target&&S.teams[t].score>=S.target)S.over=t+1;
+}
+function wouldWin(t,pot){return S.teams[t].score<S.target&&S.teams[t].score+pot>=S.target}
+
+/* ---------- Sound (made on the fly; plays on the TV window) ---------- */
+let ac=null;
+function audio(){
+  if(!ac){try{ac=new (window.AudioContext||window.webkitAudioContext)()}catch(e){return null}}
+  if(ac.state==='suspended')ac.resume().catch(()=>{});
+  return ac;
+}
+function tone(f,dur,type,vol,when,slide){
+  const a=audio();if(!a||S.muted)return;
+  const t=a.currentTime+(when||0),o=a.createOscillator(),g=a.createGain();
+  o.type=type||'sine';o.frequency.setValueAtTime(f,t);
+  if(slide)o.frequency.exponentialRampToValueAtTime(slide,t+dur);
+  g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(vol||.2,t+.012);g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+  o.connect(g).connect(a.destination);o.start(t);o.stop(t+dur+.05);
+}
+const SFX={
+  // Right-answer ding: a bright bell (strike tone plus overtones that ring out), louder than before.
+  ding(){[[1319,.5,1.3],[2638,.2,.9],[3957,.09,.6],[659,.18,1.1]].forEach(([f,v,d])=>tone(f,d,'sine',v))},
+  strike(){buzzer(0.5)},
+  buzz(){tone(740,.12,'square',.16);tone(988,.3,'square',.16,.13)},
+  show(){tone(392,.14,'triangle',.16);tone(587,.3,'triangle',.16,.1)},
+  award(){[523,659,784,1046].forEach((f,i)=>tone(f,.28,'triangle',.18,i*.09))},
+  win(){[523,659,784,1046,784,1046,1318].forEach((f,i)=>tone(f,.34,'triangle',.2,i*.14))},
+  dup(){tone(196,.18,'square',.2);tone(196,.25,'square',.2,.24)},
+  short(){[392,349,311,262].forEach((f,i)=>tone(f,i===3?.8:.26,'triangle',.22,i*.3,i===3?196:null))},
+  zero(){tone(220,.4,'triangle',.2,0,150)},
+  timeup(){buzzer(0.7)}
+};
+// Game-show wrong-answer buzzer: two slightly detuned saws plus a sub and an edge, clipped hard,
+// held at full volume and cut off sharply (no fade), so it reads as "EHHHN" not "boom".
+function buzzer(dur){
+  const a=audio();if(!a||S.muted)return;
+  const t=a.currentTime;
+  const shaper=a.createWaveShaper(),n=1024,curve=new Float32Array(n);
+  for(let i=0;i<n;i++){const x=i/(n-1)*2-1;curve[i]=Math.tanh(4*x)}
+  shaper.curve=curve;
+  const tone=a.createBiquadFilter();tone.type='lowpass';tone.frequency.value=3400;tone.Q.value=1.2;
+  const body=a.createBiquadFilter();body.type='peaking';body.frequency.value=1000;body.gain.value=6;body.Q.value=1;
+  const out=a.createGain();
+  out.gain.setValueAtTime(.0001,t);
+  out.gain.exponentialRampToValueAtTime(.34,t+.01);
+  out.gain.setValueAtTime(.34,t+dur-.05);
+  out.gain.exponentialRampToValueAtTime(.0001,t+dur);
+  shaper.connect(body).connect(tone).connect(out).connect(a.destination);
+  [[290,'sawtooth',.5],[296,'sawtooth',.5],[145,'square',.12],[580,'square',.08]].forEach(([f,type,v])=>{
+    const o=a.createOscillator(),g=a.createGain();
+    o.type=type;o.frequency.value=f;g.gain.value=v;
+    o.connect(g).connect(shaper);o.start(t);o.stop(t+dur+.05);
+  });
+}
+// Sound comes from the host window: it always has your keypresses, so the browser lets it play
+// without a "click to enable" step. With no host window open, the TV window plays it instead.
+const SILENT=new Proxy({},{get:()=>()=>{}});
+function hostConnected(){return Date.now()-hostSeen<6000}
+function soundHere(){return VIEW==='host'||!hostConnected()}
+function playFx(fx){
+  if(!fx)return;
+  const SND=soundHere()?SFX:SILENT; // sound plays in one window only
+  switch(fx.k){
+    case 'ding':SND.ding();break;
+    case 'show':SND.show();break;
+    case 'strike':showX(fx.n||1);SND.strike();if(fx.steal!=null)setTimeout(()=>banner(`${S.teams[fx.steal].name}, steal it!`,fx.steal),1150);break;
+    case 'stole':SND.ding();setTimeout(()=>{bigCard('Steal!',`${S.teams[fx.t].name} stole ${fx.pot} points!`,'',teamColor(fx.t));SND.award()},650);break;
+    case 'kept':if(fx.miss){showX(1);SND.strike()}setTimeout(()=>{bigCard('No steal!',`${S.teams[fx.t].name} keeps ${fx.pot} points!`,'',teamColor(fx.t));SND.award()},fx.miss?1150:0);break;
+    case 'buzz':{SND.buzz();banner(`${S.teams[fx.t].name}!`,fx.t);const el=$('team'+fx.t);el.classList.remove('buzzed');void el.offsetWidth;el.classList.add('buzzed');break}
+    case 'award':SND.award();banner(fx.moved?`${S.teams[fx.t].name} steals ${fx.pot}!`:`+${fx.pot} ${S.teams[fx.t].name}`,fx.t);break;
+    case 'win':SND.win();break;
+    case 'dup':SND.dup();banner('Already said. Try again!',null);break;
+    case 'fmtext':SND.show();break;
+    case 'fmpts':fx.p>0?SND.ding():SND.zero();break;
+    case 'fmgoal':SND.win();banner(`${S.teams[fx.t].name} hit ${S.fm.goal}!`,fx.t);celebrate(fx.t);break;
+    case 'fmresult':{const made=fx.total>=fx.goal;if(fx.p>0)SND.ding();setTimeout(()=>{resultCard(fx);if(made){SND.win();celebrate(fx.t)}else SND.short()},fx.p>0?700:0);break}
+    case 'tick':SND.show();break;
+  }
+}
+
+/* ---------- Main game actions ---------- */
+const A={
+  showQ(){if(!cur())return;act(()=>{S.shown=true;S.armed=S.control===null;S.buzzed=null},{k:'show'})},
+  rearm(){act(()=>{S.armed=true;S.buzzed=null;S.control=null;S.strikes=0;S.stealBy=null})},  // re-arming starts a fresh face-off
+  reveal(i){
+    const q=cur();if(!q||i>=q.answers.length||S.revealed.includes(i))return;
+    if(S.stealBy!=null&&!S.awarded){
+      // Steal guess is on the board: flip it and the stealing team takes the whole pot.
+      const t=S.stealBy,pot=S.pot+q.answers[i].p*mult(S.round);
+      act(()=>{S.revealed.push(i);S.pot=pot;givePot(t)},wouldWin(t,pot)?{k:'win'}:{k:'stole',t,pot});
+      return;
+    }
+    act(()=>{S.shown=true;S.revealed.push(i);if(!S.awarded)S.pot+=q.answers[i].p*mult(S.round)},{k:'ding'});
+  },
+  strike(){
+    if(S.control===null){const f=Math.min(3,S.strikes+1);act(()=>{S.strikes=f},{k:'strike',n:f});return}  // before a team is picked: each X still fills the next box (big X shows once); picking a team clears them
+    if(S.stealBy!=null&&!S.awarded){
+      // Steal guess missed: the team that was playing keeps the pot.
+      const t=S.control,pot=S.pot;
+      act(()=>givePot(t),wouldWin(t,pot)?{k:'win'}:{k:'kept',t,pot,miss:true});
+      return;
+    }
+    if(S.awarded){fxOnly({k:'strike',n:1});return}
+    const n=Math.min(3,S.strikes+1),steal=n===3?1-S.control:null;
+    // Third strike: the other team is now up to steal.
+    act(()=>{S.strikes=n;if(steal!=null)S.stealBy=steal},{k:'strike',n,steal});
+  },
+  ctl(t){act(()=>{S.control=t;S.strikes=0;S.armed=false;S.stealBy=null})},
+  award(t){
+    const pot=S.pot,before=S.teams[t].score,crosses=before<S.target&&before+pot>=S.target;
+    if(S.awarded){
+      // Already given out this round: pressing the other team moves the whole pot over (steal or fix a mistake).
+      const from=S.awardedTo;if(from==null||from===t)return;
+      act(()=>{
+        S.teams[from].score-=pot;S.teams[t].score+=pot;S.awardedTo=t;S.stole=S.control!=null&&t!==S.control;
+        if(S.over===from+1&&S.teams[from].score<S.target)S.over=false;
+        if(crosses)S.over=t+1;
+      },crosses?{k:'win'}:{k:'award',t,pot,moved:true});
+      return;
+    }
+    const kind=S.stealBy==null?'award':t===S.stealBy?'stole':'kept';
+    act(()=>givePot(t),crosses?{k:'win'}:{k:kind,t,pot});
+  },
+  next(){if(S.round>=Q.length-1)return;act(()=>{S.round++;resetRound()})},
+  prev(){if(S.round<=0)return;act(()=>{S.round--;resetRound()})},
+  undo(){const h=hist.pop();if(!h)return;const v=S.v||0;S=JSON.parse(h);S.v=v+1;builtKey=null;save();render();broadcast(null)},
+  newGame(){act(()=>{S.teams.forEach(t=>t.score=0);S.round=0;S.over=false;S.mode='main';S.fm=Object.assign(freshFM(),{goal:S.fm.goal});resetRound()});shownScore[0]=shownScore[1]=0},
+  setup(){openSetup()},
+  full(){if(document.fullscreenElement){document.exitFullscreen?.().catch(()=>{})}else{document.documentElement.requestFullscreen?.().catch(()=>{})}},
+  mute(){S.muted=!S.muted;sync()},
+  modeMain(){act(()=>{S.mode='main'})},
+  modeFm(){act(()=>{S.mode='fm';S.over=false;S.armed=false})},
+  toggleMode(){S.mode==='fm'?A.modeMain():A.modeFm()},
+  keepPlaying(){act(()=>{S.over=false})}
+};
+function buzzIn(t){
+  if(S.mode!=='main'||!S.armed||S.buzzed!==null)return;
+  act(()=>{S.buzzed=t;S.armed=false},{k:'buzz',t});
+}
+
+/* ---------- Fast Money actions ---------- */
+function fmDur(){return S.fm.player===0?20:25}
+function fmRemaining(){const t=S.fm.timer;return t.running?Math.max(0,(t.endsAt-Date.now())/1000):t.left}
+function fmSlot(q){return S.fm.slots[S.fm.team][S.fm.player][q]}
+const F={
+  pick(i){
+    const q=S.fm.q;if(q>4)return;const a=fmQs(S.fm.team)[q]?.answers[i];if(!a)return;
+    act(()=>{Object.assign(fmSlot(q),{t:a.t,p:a.p,set:true,st:0});S.fm.q=Math.min(5,q+1)});
+  },
+  other(text){
+    const q=S.fm.q;if(q>4)return;
+    act(()=>{Object.assign(fmSlot(q),{t:text||'No answer',p:0,set:true,st:0});S.fm.q=Math.min(5,q+1)});
+  },
+  dup(){fxOnly({k:'dup'})},
+  setQ(q){act(()=>{S.fm.q=Math.max(0,Math.min(4,q))})},
+  team(t){act(()=>{Object.assign(S.fm,{team:t,player:0,q:0,showBoth:false});S.fm.timer={running:false,endsAt:0,left:20}})},
+  player(p){act(()=>{Object.assign(S.fm,{player:p,q:0,showBoth:false});S.fm.timer={running:false,endsAt:0,left:p===0?20:25}})},
+  timer(){
+    const t=S.fm.timer;
+    if(t.running&&fmRemaining()>0){act(()=>{S.fm.timer={running:false,endsAt:0,left:fmRemaining()}});return}
+    const left=(!t.running&&t.left>0)?t.left:fmDur();
+    act(()=>{S.fm.timer={running:true,endsAt:Date.now()+left*1000,left}},{k:'tick'});
+  },
+  timerReset(){act(()=>{S.fm.timer={running:false,endsAt:0,left:fmDur()}})},
+  reveal(){
+    const col=S.fm.slots[S.fm.team][S.fm.player];
+    const i=col.findIndex(x=>x.set&&x.st<2);if(i<0)return;
+    const before=fmTotal(S.fm.team),x=col[i],step=x.st+1;
+    const after=step===2?before+x.p:before;
+    const hit=before<S.fm.goal&&after>=S.fm.goal;
+    // Last points of player 2 revealed = the team's Fast Money is over: show made it / fell short.
+    const t=S.fm.team,p2=S.fm.slots[t][1];
+    const isFinal=S.fm.player===1&&step===2&&p2.every((y,j)=>y.set&&(j===i||y.st===2));
+    act(()=>{col[i].st=step},isFinal?{k:'fmresult',t,total:after,goal:S.fm.goal,p:x.p}:hit?{k:'fmgoal',t}:step===1?{k:'fmtext'}:{k:'fmpts',p:x.p});
+  },
+  result(){const t=S.fm.team;fxOnly({k:'fmresult',t,total:fmTotal(t),goal:S.fm.goal,p:0})},
+  uncover(){act(()=>{S.fm.showBoth=!S.fm.showBoth})}
+};
+
+/* ---------- Effects ---------- */
+// Big centered card on the TV: kicker line, headline, optional subline.
+function bigCard(kick,head,sub,color){
+  if(VIEW!=='board')return;
+  document.querySelectorAll('.result,.banner').forEach(r=>r.remove());
+  const d=el('div','result');d.style.setProperty('--tc',color);
+  d.append(el('div','rk',kick),el('div','rh',head));
+  if(sub)d.appendChild(el('div','rs',sub));
+  document.body.appendChild(d);setTimeout(()=>d.remove(),5200);
+}
+function resultCard(fx){
+  const made=fx.total>=fx.goal,n=S.teams[fx.t].name;
+  bigCard(made?'They did it!':'So close!',made?`${n} made it!`:`${n} fell short`,
+    made?`${fx.total} points. The goal was ${fx.goal}.`:`${fx.total} points, ${fx.goal-fx.total} short of ${fx.goal}.`,
+    made?teamColor(fx.t):'var(--ember)');
+}
+function showX(n){
+  if(VIEW!=='board')return;
+  const o=$('xover');o.innerHTML='';
+  for(let i=0;i<n;i++){const s=document.createElement('div');s.className='x';s.textContent='X';s.style.animationDelay=(i*.06)+'s';o.appendChild(s)}
+  clearTimeout(showX.t);showX.t=setTimeout(()=>o.innerHTML='',1300);
+}
+function banner(text,t){
+  if(VIEW!=='board')return;
+  document.querySelectorAll('.banner').forEach(b=>b.remove());
+  const b=document.createElement('div');b.className='banner';b.textContent=text;
+  b.style.setProperty('--tc',teamColor(t));
+  document.body.appendChild(b);setTimeout(()=>b.remove(),2300);
+}
+// Fast Money win: two confetti cannons fire from the bottom corners, mostly in the team's color.
+function celebrate(t){
+  if(VIEW!=='board'||matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  document.querySelectorAll('canvas.party').forEach(c=>c.remove());
+  const c=document.createElement('canvas');c.className='party';document.body.appendChild(c);
+  const x=c.getContext('2d'),W=c.width=innerWidth,H=c.height=innerHeight;
+  const css=getComputedStyle(document.documentElement),tok=v=>css.getPropertyValue(v).trim();
+  const team=tok(t===1?'--teal':'--amber');
+  const cols=[team,team,team,tok('--cream'),tok('--ember'),tok(t===1?'--amber':'--teal')];
+  const ps=[];
+  const burst=(n,delay)=>setTimeout(()=>{for(let i=0;i<n;i++){
+    const left=i%2===0,sp=(13+Math.random()*11)*(H/900);
+    const tilt=0.18+Math.random()*0.5; // radians away from straight up, aimed toward the middle
+    ps.push({x:left?-10:W+10,y:H+10,vx:(left?1:-1)*Math.sin(tilt)*sp,vy:-Math.cos(tilt)*sp,
+      w:7+Math.random()*9,h:4+Math.random()*6,r:Math.random()*6,vr:-.25+Math.random()*.5,
+      c:cols[Math.floor(Math.random()*cols.length)],shape:Math.random()<.25?1:0,wob:Math.random()*6})}},delay);
+  burst(160,0);burst(140,450);burst(90,1100);
+  const t0=performance.now(),life=6000;
+  (function f(now){
+    const el=now-t0;x.clearRect(0,0,W,H);
+    const fade=el>life-1200?Math.max(0,(life-el)/1200):1;x.globalAlpha=fade;
+    for(const p of ps){
+      p.vy+=.32*(H/900);p.vx*=.992;p.vy*=.992;p.x+=p.vx+Math.sin((p.y+p.wob*40)/60)*.8;p.y+=p.vy;p.r+=p.vr;
+      x.save();x.translate(p.x,p.y);x.rotate(p.r);x.fillStyle=p.c;
+      if(p.shape){x.beginPath();x.arc(0,0,p.h*.7,0,Math.PI*2);x.fill()}
+      else x.fillRect(-p.w/2,-p.h/2,p.w,p.h*Math.abs(Math.cos(p.r*1.7)));
+      x.restore();
+    }
+    if(el<life)requestAnimationFrame(f);else c.remove();
+  })(t0);
+}
+let confettiRun=0;
+function confetti(){
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  const c=$('confetti'),x=c.getContext('2d'),id=++confettiRun;
+  const css=getComputedStyle(document.documentElement);
+  const cols=['--amber','--cream','--teal','--ember'].map(v=>css.getPropertyValue(v).trim());
+  const W=c.width=innerWidth,H=c.height=innerHeight;
+  const ps=Array.from({length:90},()=>({x:Math.random()*W,y:-Math.random()*H,r:6+Math.random()*10,vy:1.5+Math.random()*2.5,vx:-1+Math.random()*2,a:Math.random()*6,va:-.08+Math.random()*.16,c:cols[Math.floor(Math.random()*cols.length)]}));
+  (function f(){
+    if(id!==confettiRun||$('win').hidden)return;
+    x.clearRect(0,0,W,H);
+    for(const p of ps){p.y+=p.vy;p.x+=p.vx+Math.sin(p.y/40);p.a+=p.va;if(p.y>H+20){p.y=-20;p.x=Math.random()*W}
+      x.save();x.translate(p.x,p.y);x.rotate(p.a);x.fillStyle=p.c;x.beginPath();x.ellipse(0,0,p.r,p.r*.45,0,0,Math.PI*2);x.fill();x.restore()}
+    requestAnimationFrame(f);
+  })();
+}
+
+/* ---------- Rendering helpers ---------- */
+function el(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e}
+
+/* ---------- Board (TV) ---------- */
+function buildBoard(){
+  const q=cur(),b=$('board');b.innerHTML='';
+  for(let i=0;i<8;i++){
+    const a=q&&q.answers[i];
+    const t=el('button','tile'+(a?'':' empty'));t.dataset.i=i;t.type='button';
+    t.setAttribute('aria-label',a?`Answer ${i+1}`:'Empty slot');
+    t.innerHTML=`<div class="inner"><div class="face front"><span class="num">${i+1}</span></div><div class="face back"><span class="ans"></span><span class="pts"></span></div></div>`;
+    if(a){t.querySelector('.ans').textContent=a.t;t.querySelector('.pts').textContent=a.p}else t.tabIndex=-1;
+    b.appendChild(t);
+  }
+  builtKey=S.round+'|'+S.qtext;
+}
+function renderBoard(){
+  const fm=S.mode==='fm';
+  $('mainView').hidden=fm;$('fmView').hidden=!fm;$('boardMeta').hidden=fm;
+  const hostLive=Date.now()-hostSeen<6000;
+  $('host').hidden=hostLive;
+  $('modeBtn').textContent=fm?'Main game':'Fast Money';
+  $('muteBtn').innerHTML=`<kbd>M</kbd> ${S.muted?'Sound off':'Sound on'}`;
+  $('soundGate').hidden=!!(ac&&ac.state==='running')||S.muted||hostConnected();
+  if(fm){renderFmBoard();$('win').hidden=true;return}
+  if(builtKey!==S.round+'|'+S.qtext)buildBoard();
+  const q=cur(),r=S.round;
+  $('roundChip').textContent=`Round ${r+1} of ${Q.length}`;
+  $('multChip').textContent=multName(r);
+  $('targetChip').textContent=`First to ${S.target}`;
+  $('qtext').textContent=!q?'Add questions in Setup':S.shown?q.q:`Round ${r+1}`;
+  $('qhint').textContent=q?'Get ready…':'Press S to open Setup';
+  $('qhint').hidden=S.shown;
+  $('live').hidden=!S.armed;
+  document.querySelectorAll('.tile').forEach(t=>t.classList.toggle('open',S.revealed.includes(+t.dataset.i)));
+  $('pot').textContent=S.pot;
+  [...$('strikes').children].forEach((p,i)=>p.classList.toggle('on',i<S.strikes));
+  S.teams.forEach((t,i)=>{
+    const e=$('team'+i);
+    e.querySelector('.name').textContent=t.name;
+    e.querySelector('.players').textContent=t.players;
+    const playing=S.stealBy!=null&&!S.awarded?S.stealBy:S.control;
+    e.classList.toggle('control',playing===i);
+    const stealing=S.stealBy===i&&!S.awarded;
+    e.classList.toggle('steal',stealing);
+    e.querySelector('.status').textContent=S.awarded?(S.awardedTo===i?(S.stole?`Stole ${S.pot}!`:`Won ${S.pot}`):''):stealing?'Going for the steal!':S.control===i?(S.stealBy!=null?'3 strikes':'Playing'):S.buzzed===i?'Buzzed first':'';
+    if(S.buzzed!==i)e.classList.remove('buzzed');
+  });
+  tweenScores();
+  const w=$('win');
+  if(S.over){
+    const t=S.over-1,wasHidden=w.hidden;
+    w.hidden=false;w.style.setProperty('--tc',teamColor(t));
+    $('winTitle').textContent=`${S.teams[t].name} wins!`;
+    $('winSub').textContent=`First to ${S.target}`;
+    $('winScore').textContent=`${S.teams[0].name} ${S.teams[0].score}  ·  ${S.teams[1].name} ${S.teams[1].score}`;
+    if(wasHidden)confetti();
+  }else w.hidden=true;
+}
+function renderFmBoard(){
+  const f=S.fm,t=f.team;
+  const head=$('fmTeam');head.style.setProperty('--tc',teamColor(t));
+  head.textContent=S.teams[t].name;head.appendChild(el('small',null,`Player ${f.player+1} of 2`));
+  const g=$('fmGrid');g.innerHTML='';
+  const coverP1=f.player===1&&!f.showBoth;
+  [0,1].forEach(p=>{
+    const col=el('div','fmcol');col.appendChild(el('h4',null,`Player ${p+1}`));
+    f.slots[t][p].forEach(x=>{
+      const covered=p===0&&coverP1;
+      const c=el('div','fmcell'+(covered?' covered':'')+(!covered&&x.st>=1?' txt':'')+(!covered&&x.st>=2?' pts':''));
+      c.appendChild(el('div','t',!covered&&x.st>=1?x.t:''));
+      c.appendChild(el('div','p',!covered&&x.st>=2?String(x.p):''));
+      col.appendChild(c);
+    });
+    g.appendChild(col);
+  });
+  const tot=fmTotal(t);
+  $('fmTotal').textContent=tot;$('fmGoal').textContent=`Goal ${f.goal}`;
+  $('fmTotalBox').classList.toggle('hit',tot>=f.goal);
+  const o=$('fmOthers');o.innerHTML='';
+  S.teams.forEach((tm,i)=>{const s=el('span',null,fmStatus(i));s.style.color=teamColor(i);o.appendChild(s)});
+}
+let tweenRaf=0;
+function tweenScores(){
+  cancelAnimationFrame(tweenRaf);
+  const step=()=>{
+    let moving=false;
+    S.teams.forEach((t,i)=>{
+      const d=t.score-shownScore[i];
+      if(d!==0){moving=true;shownScore[i]+=Math.sign(d)*Math.max(1,Math.ceil(Math.abs(d)/12))}
+      $('team'+i).querySelector('.score').textContent=shownScore[i];
+    });
+    if(moving)tweenRaf=requestAnimationFrame(step);
+  };
+  step();
+}
+
+/* ---------- Host screen ---------- */
+function renderHost(){
+  const fm=S.mode==='fm';
+  $('segMain').classList.toggle('on',!fm);$('segFm').classList.toggle('on',fm);
+  $('hvMain').hidden=fm;$('hvFm').hidden=!fm;
+  $('hvMute').textContent=S.muted?'Sound: off':'Sound: on';
+  renderSync();
+  if(fm){renderHostFm();return}
+  const q=cur(),r=S.round;
+  $('hvRound').innerHTML='';
+  [`Round ${r+1} of ${Q.length}`,multName(r),`First to ${S.target}`,S.shown?'Question is on the TV':'Question hidden on the TV'].forEach(s=>$('hvRound').appendChild(el('span',null,s)));
+  $('hvQ').textContent=q?q.q:'No questions. Open Setup.';
+  $('hvQ').classList.toggle('off',!S.shown);
+  renderGuide(q);
+  const list=$('hvAns');list.innerHTML='';
+  (q?q.answers:[]).forEach((a,i)=>{
+    const li=el('li'),b=el('button',S.revealed.includes(i)?'done':'');b.type='button';b.dataset.i=i;
+    b.append(el('span','n',String(i+1)),el('span','a',a.t),el('span','p',String(a.p)),el('span','s',S.revealed.includes(i)?'On the board':`Press ${i+1}`));
+    li.appendChild(b);list.appendChild(li);
+  });
+  $('hvPot').textContent=S.pot;
+  $('hvMult').textContent=`×${mult(r)}`+(S.awarded?' · awarded':'');
+  [...$('hvStrikes').children].forEach((p,i)=>p.classList.toggle('on',i<S.strikes));
+  const tw=$('hvTeams');tw.innerHTML='';
+  S.teams.forEach((t,i)=>{
+    const armed=S.armed&&S.buzzed===null&&S.mode==='main';
+    const c=el('div','box tcard'+(S.buzzed===i&&S.control===null&&!S.awarded?' buzzed':'')+(armed?' armed':''));c.dataset.t=i;
+    const stealing=S.stealBy===i&&!S.awarded;
+    c.append(el('div','nm',t.name),el('div','sc',String(t.score)),el('div','st',stealing?'Going for the steal':S.control===i?(S.stealBy!=null&&!S.awarded?'3 strikes':'Playing this round'):(S.buzzed===i&&S.control===null)?'Buzzed in first!':armed?'Buzzer armed':t.players||''));
+    const row=el('div','row');
+    const p=el('button',`hb t${i}${(S.stealBy!=null&&!S.awarded?S.stealBy:S.control)===i?' on':''}`);p.dataset.h='ctl'+i;p.innerHTML=`Plays <kbd>${i?'→':'←'}</kbd>`;
+    const g=el('button','hb');g.dataset.h='award'+i;
+    g.disabled=S.awarded&&S.awardedTo===i;
+    g.innerHTML=(S.awarded?(S.awardedTo===i?'Has the pot':'Move pot here'):'Give pot')+` <kbd>${i?']':'['}</kbd>`;
+    row.append(p,g);c.appendChild(row);tw.appendChild(c);
+  });
+  const hw=$('hvWin');
+  if(S.over){
+    hw.hidden=false;hw.innerHTML='';
+    hw.append(el('div','nm',`${S.teams[S.over-1].name} reached ${S.target}!`));
+    const row=el('div','row');
+    const k=el('button','hb');k.dataset.h='keepPlaying';k.textContent='Keep playing';
+    const f=el('button','hb go');f.dataset.h='modeFm';f.textContent='On to Fast Money';
+    row.append(k,f);hw.appendChild(row);
+  }else hw.hidden=true;
+}
+/* "What happens next" box on the host screen, with the buttons for that step. */
+function renderGuide(q){
+  const bz=$('hvBuzz');bz.className='hvbuzz';bz.innerHTML='';
+  const N=i=>S.teams[i].name,ctl=S.control,other=ctl===null?null:1-ctl,pot=S.pot;
+  const allOpen=q&&S.revealed.length>=q.answers.length;
+  const btn=(h,html,cls)=>{const b=el('button','hb'+(cls?' '+cls:''));b.dataset.h=h;b.innerHTML=html;return b};
+  let text='',btns=[],cls='';
+  if(!q){text='No questions. Open Setup.'}
+  else if(S.awarded){
+    const w=S.awardedTo;cls='t'+w;
+    text=S.stole?`Steal! ${N(w)} stole ${pot}. Round over.`:`Round over. ${N(w)} won ${pot}.`;
+    btns=[btn('next','Next round <kbd>N</kbd>','go'),btn('award'+(1-w),`Oops, give it to ${N(1-w)}`)];
+  }
+  else if(!S.shown){
+    text='Read the question to yourself, then show it. Buzzers go live.';
+    btns=[btn('showQ','Show question <kbd>Enter</kbd>','go')];
+  }
+  else if(ctl===null){
+    if(S.buzzed!==null){cls='t'+S.buzzed;text=`${N(S.buzzed)} buzzed first. Flip their answer (1–8) or press X. Then pick who plays.`}
+    else if(S.armed){cls='armed';text='Buzzers armed. Waiting for a buzz…'}
+    else text='Pick who plays, or re-arm the buzzers.';
+    btns=[btn('ctl0',`${N(0)} plays <kbd>←</kbd>`),btn('ctl1',`${N(1)} plays <kbd>→</kbd>`),btn('rearm','Re-arm <kbd>R</kbd>')];
+  }
+  else if(allOpen){
+    cls='t'+ctl;text=`Board cleared! ${N(ctl)} wins the round.`;
+    btns=[btn('award'+ctl,`Give ${pot} to ${N(ctl)} <kbd>${ctl?']':'['}</kbd>`,'go')];
+  }
+  else if(S.strikes>=3){
+    cls='steal';text=`${N(other)} is going for the steal. Their guess on the board? Press its number and they take the pot. Not on the board? Press X and ${N(ctl)} keeps it.`;
+    btns=[btn('award'+other,`Steal worked: ${pot} to ${N(other)}`,'go'),btn('award'+ctl,`Steal failed: ${pot} to ${N(ctl)}`)];
+  }
+  else{
+    cls='t'+ctl;text=`${N(ctl)} is playing. ${pot} in the pot. Flip right answers, X for wrong (${S.strikes} of 3).`;
+  }
+  if(cls)bz.classList.add(cls);
+  bz.appendChild(el('div',null,text));
+  if(btns.length){const r=el('div','row');r.append(...btns);bz.appendChild(r)}
+}
+function renderHostFm(){
+  const f=S.fm,t=f.team,qs=fmQs(t);
+  const tabs=$('fmTabs');tabs.innerHTML='';
+  S.teams.forEach((tm,i)=>{const b=el('button',`hb t${i}${f.team===i?' on':''}`,tm.name);b.dataset.h='fmTeam'+i;tabs.appendChild(b)});
+  tabs.appendChild(el('span','sep'));
+  [0,1].forEach(p=>{const b=el('button',`hb${f.player===p?' on':''}`,`Player ${p+1} (${p?25:20}s)`);b.dataset.h='fmPlayer'+p;tabs.appendChild(b)});
+  updateTimers();
+  const q=f.q;
+  const col=f.slots[t][f.player];
+  const nextRev=col.findIndex(x=>x.set&&x.st<2);
+  if(q<5){
+    $('fmQmeta').textContent=`${S.teams[t].name} · Player ${f.player+1} · Question ${q+1} of 5`;
+    $('fmQtext').textContent=qs[q]?.q||'';
+  }else if(nextRev>=0){
+    const x=col[nextRev];
+    $('fmQmeta').textContent=`Revealing question ${nextRev+1} of 5 · ${x.st===0?'next: show their answer':'next: show the points'}`;
+    $('fmQtext').textContent=qs[nextRev]?.q||'';
+    $('fmQtext').appendChild(el('div','said',`They said: ${x.t}`));
+  }else{
+    $('fmQmeta').textContent=`All of player ${f.player+1}'s answers are revealed.`;
+    $('fmQtext').textContent='';
+  }
+  const pick=$('fmPick');pick.innerHTML='';
+  if(q<5&&qs[q]){
+    const p1=f.player===1?f.slots[t][0][q]:null;
+    qs[q].answers.forEach((a,i)=>{
+      const b=el('button');b.type='button';b.dataset.pick=i;
+      const left=el('span');left.innerHTML=`<kbd>${i+1}</kbd>`;left.append(a.t);
+      b.append(left,el('span',null,String(a.p)));
+      if(p1&&p1.set&&p1.t===a.t){b.disabled=true;b.style.opacity='.4';b.title='Player 1 said this'}
+      pick.appendChild(b);
+    });
+  }
+  $('fmSlotsHead').textContent=`Player ${f.player+1} answers`+(f.player===1?' (player 1 is covered on the TV)':'');
+  const sl=$('fmSlots');sl.innerHTML='';
+  f.slots[t][f.player].forEach((x,i)=>{
+    const li=el('li'),b=el('button',i===q&&q<5?'cur':'');b.type='button';b.dataset.slot=i;
+    const qa=el('span','qa');qa.append(el('span','qq',qs[i]?.q||''),el('span','a'+(x.set?'':' empty'),x.set?x.t:'no answer yet'));
+    if(i===nextRev&&q>=5)b.classList.add('cur');
+    b.append(el('span','n',`Q${i+1}`),qa,el('span','p',x.set?String(x.p):''),el('span','s',!x.set?'':x.st===0?'hidden':x.st===1?'answer shown':'points shown'));
+    li.appendChild(b);sl.appendChild(li);
+  });
+  $('fmUncoverBtn').hidden=f.player!==1;
+  $('fmUncoverBtn').textContent=f.showBoth?'Cover player 1 again':'Uncover player 1';
+  const tb=$('fmTotals');tb.innerHTML='';
+  tb.appendChild(el('div','hvmeta',`Fast Money totals · goal ${f.goal}`));
+  S.teams.forEach((tm,i)=>{const r=el('div','nm',fmStatus(i));r.style.color=teamColor(i);tb.appendChild(r)});
+}
+function renderSync(){
+  const ok=Date.now()-lastPing<5000,s=$('sync');
+  const stale=ok&&tvBuild!==BUILD;
+  const label={main:'Main game',fm:'Fast Money'}[tvMode]||'?';
+  s.classList.toggle('ok',ok&&!stale);
+  // Wait a few seconds after load before warning, so a normal startup doesn't flash the banner.
+  $('noLink').hidden=ok||performance.now()<4000;
+  s.textContent=!ok?'TV board not connected':stale?'TV window is running an old version. Refresh it (Cmd+R).':`TV is showing: ${label}`;
+}
+
+/* ---------- Timer loop (both windows) ---------- */
+let timeUpFor=0;
+function updateTimers(){
+  const left=fmRemaining(),run=S.fm.timer.running,txt=String(Math.ceil(left));
+  if(S.mode==='fm'&&run&&left<=0&&timeUpFor!==S.fm.timer.endsAt){timeUpFor=S.fm.timer.endsAt;if(soundHere())SFX.timeup()}
+  if(VIEW==='board'&&S.mode==='fm'){
+    const e=$('fmTimer');e.textContent=txt;e.classList.toggle('low',run&&left<=5);e.classList.toggle('idle',!run);
+  }
+  if(VIEW==='host'&&S.mode==='fm'){
+    $('hvTimer').textContent=txt;
+    $('hvTimerBtn').innerHTML=run&&left>0?'Pause <kbd>T</kbd>':run?'Time is up. Restart <kbd>T</kbd>':'Start <kbd>T</kbd>';
+  }
+}
+setInterval(()=>{updateTimers();if(VIEW==='host')renderSync()},150);
+setInterval(()=>{if(VIEW==='host')send({type:'ping',S,build:BUILD});else send({type:'ping',mode:S.mode,build:BUILD})},1500);
+setInterval(()=>{if(VIEW==='board'){$('host').hidden=hostConnected();if(hostConnected())$('soundGate').hidden=true}},1000);
+
+function render(){
+  Q=parseQ(S.qtext);FMQ=parseQ(S.fmtext);
+  if(S.round>=Q.length)S.round=Math.max(0,Q.length-1);
+  document.body.classList.toggle('hostmode',VIEW==='host');
+  $('app').hidden=VIEW==='host';$('hostView').hidden=VIEW!=='host';
+  if(VIEW==='host')renderHost();else renderBoard();
+  if(setupOpen)renderSetup();
+}
+
+/* ---------- Setup ---------- */
+function openSetup(){setupOpen=true;$('setup').hidden=false;$('qedit').value=S.qtext;$('fmedit').value=S.fmtext;$('target').value=S.target;$('fmGoalIn').value=S.fm.goal;renderSetup()}
+function closeSetup(){setupOpen=false;learning=null;$('setup').hidden=true;render()}
+function renderSetup(){
+  const wrap=$('teamCards');
+  if(!wrap.children.length){
+    wrap.innerHTML=[0,1].map(i=>`
+      <div class="card" data-t="${i}">
+        <h3>${i?'Right':'Left'} team</h3>
+        <label>Team name<input id="tname${i}" maxlength="28"></label>
+        <label>Players<input id="tplayers${i}" maxlength="80" placeholder="e.g. Sam, Alex, Jordan, Casey"></label>
+        <div class="keyrow"><span class="help">Buzzer key</span><span class="keycap" id="kcap${i}"></span>
+          <button class="btn ghost" id="klearn${i}">Set buzzer</button></div>
+        <div class="warn" id="kwarn${i}"></div>
+      </div>`).join('');
+    [0,1].forEach(i=>{
+      $('tname'+i).addEventListener('input',e=>{S.teams[i].name=e.target.value||(i?'Right team':'Left team');sync()});
+      $('tplayers'+i).addEventListener('input',e=>{S.teams[i].players=e.target.value;sync()});
+      $('klearn'+i).addEventListener('click',()=>{learning=i;renderSetup()});
+    });
+  }
+  [0,1].forEach(i=>{
+    const t=S.teams[i];
+    if(document.activeElement!==$('tname'+i))$('tname'+i).value=t.name;
+    if(document.activeElement!==$('tplayers'+i))$('tplayers'+i).value=t.players;
+    const cap=$('kcap'+i);
+    cap.textContent=learning===i?'Press…':t.keyLabel;
+    cap.classList.toggle('listen',learning===i);
+    $('klearn'+i).textContent=learning===i?'Waiting for buzzer (Esc cancels)':'Set buzzer';
+    const other=S.teams[1-i];
+    $('kwarn'+i).textContent=
+      t.key===other.key?'Both teams use the same key. Set a different one.':
+      HOST_KEYS.has(t.key)?'This key is also a host shortcut. It will only act as a buzzer, so use the on-screen button for that action.':
+      'Press the buzzer now to test it. The key lights up.';
+  });
+  $('qcount').textContent=`${parseQ($('qedit').value).length} main questions · ${parseQ($('fmedit').value).length} Fast Money questions`;
+}
+function flashKey(i){const c=$('kcap'+i);if(!c)return;c.classList.add('lit');setTimeout(()=>c.classList.remove('lit'),400)}
+
+/* ---------- Input ---------- */
+// Some keyboards and tools leave e.code empty; rebuild it from e.key.
+function codeOf(e){
+  if(e.code)return e.code;
+  const k=e.key||'';
+  const named={'[':'BracketLeft',']':'BracketRight',' ':'Space','/':'Slash'};
+  if(named[k])return named[k];
+  if(/^[0-9]$/.test(k))return 'Digit'+k;
+  if(/^[a-z]$/i.test(k))return 'Key'+k.toUpperCase();
+  return k;
+}
+function isTyping(e){const t=e.target;return t&&(t.tagName==='INPUT'||t.tagName==='TEXTAREA')}
+document.addEventListener('keydown',e=>{
+  audio();
+  if(learning!==null){
+    e.preventDefault();
+    if(e.key!=='Escape'){const t=S.teams[learning];t.key=codeOf(e);t.keyLabel=e.key===' '?'Space':e.key.length===1?e.key.toUpperCase():e.key;sync()}
+    learning=null;renderSetup();return;
+  }
+  const c=codeOf(e);
+  const bt=S.teams.findIndex(t=>t.key===c);
+  if(bt>=0&&!isTyping(e)){
+    e.preventDefault();if(e.repeat)return;
+    if(setupOpen){flashKey(bt);fxOnly({k:'show'});return}
+    buzzIn(bt);return;
+  }
+  if(isTyping(e)||e.metaKey||e.ctrlKey||e.altKey)return;
+  if(setupOpen){if(e.key==='Escape')closeSetup();return}
+  if(e.repeat)return;
+  const common={KeyU:A.undo,Backspace:A.undo,KeyS:A.setup,KeyF:A.full,KeyM:A.mute};
+  if(common[c]){e.preventDefault();common[c]();return}
+  const d=c.match(/^(?:Digit|Numpad)([0-8])$/);
+  if(S.mode==='fm'){
+    if(d){e.preventDefault();+d[1]===0?F.other('No answer'):F.pick(+d[1]-1);return}
+    const m={KeyT:F.timer,KeyD:F.dup,Space:F.reveal,Enter:F.reveal,ArrowUp:()=>F.setQ(S.fm.q-1),ArrowDown:()=>F.setQ(S.fm.q+1)};
+    if(m[c]){e.preventDefault();m[c]()}
+    return;
+  }
+  if(S.over&&e.key==='Escape'){A.keepPlaying();return}
+  if(d&&+d[1]>0){e.preventDefault();A.reveal(+d[1]-1);return}
+  const m={Enter:A.showQ,KeyR:A.rearm,KeyX:A.strike,KeyN:A.next,KeyP:A.prev,ArrowLeft:()=>A.ctl(0),ArrowRight:()=>A.ctl(1),BracketLeft:()=>A.award(0),BracketRight:()=>A.award(1)};
+  if(m[c]){e.preventDefault();m[c]()}
+});
+document.addEventListener('pointerdown',()=>{audio();if(VIEW==='board')setTimeout(()=>{$('soundGate').hidden=!!(ac&&ac.state==='running')||S.muted||hostConnected()},50)});
+document.addEventListener('click',e=>{const b=e.target.closest('button');if(b)setTimeout(()=>b.blur(),0)});
+$('soundGate').addEventListener('click',()=>{audio();SFX.show();setTimeout(()=>$('soundGate').hidden=true,50)});
+$('board').addEventListener('click',e=>{const t=e.target.closest('.tile');if(t&&!t.classList.contains('empty'))A.reveal(+t.dataset.i)});
+$('host').addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b)return;const a=b.dataset.a;
+  if(a==='ctl0'||a==='ctl1')A.ctl(+a.slice(-1));
+  else if(a==='award0'||a==='award1')A.award(+a.slice(-1));
+  else A[a]();
+});
+$('hostView').addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b||b.disabled)return;
+  if(b.dataset.i!=null){A.reveal(+b.dataset.i);return}
+  if(b.dataset.pick!=null){F.pick(+b.dataset.pick);return}
+  if(b.dataset.slot!=null){F.setQ(+b.dataset.slot);return}
+  const h=b.dataset.h;if(!h)return;
+  const map={
+    ctl0:()=>A.ctl(0),ctl1:()=>A.ctl(1),award0:()=>A.award(0),award1:()=>A.award(1),
+    fmTeam0:()=>F.team(0),fmTeam1:()=>F.team(1),fmPlayer0:()=>F.player(0),fmPlayer1:()=>F.player(1),
+    fmTimer:F.timer,fmResult:F.result,hostNewGame:hostNewGame,fmTimerReset:F.timerReset,fmDup:F.dup,fmNone:()=>F.other('No answer'),fmReveal:F.reveal,fmUncover:F.uncover
+  };
+  (map[h]||A[h])?.();
+});
+$('fmOther').addEventListener('keydown',e=>{
+  if(e.key==='Enter'){e.preventDefault();const v=e.target.value.trim();F.other(v||'No answer');e.target.value=''}
+  if(e.key==='Escape')e.target.blur();
+});
+$('closeSetup').addEventListener('click',closeSetup);
+$('importGo').addEventListener('click',importQuestions);
+$('copyPrompt').addEventListener('click',()=>{
+  const pt=$('promptText');pt.value=AI_PROMPT;
+  const done=()=>{$('copyMsg').textContent='Copied. Paste it into Claude.'};
+  const fallback=()=>{pt.hidden=false;pt.focus();pt.select();$('copyMsg').textContent='Copy didn\'t work here. The prompt is selected below: press Cmd+C.'};
+  try{navigator.clipboard.writeText(AI_PROMPT).then(done,fallback)}catch(e){fallback()}
+});
+$('target').addEventListener('input',e=>{const v=parseInt(e.target.value,10);if(v>0){S.target=v;sync()}});
+$('fmGoalIn').addEventListener('input',e=>{const v=parseInt(e.target.value,10);if(v>0){S.fm.goal=v;sync()}});
+$('qedit').addEventListener('input',renderSetup);
+$('fmedit').addEventListener('input',renderSetup);
+$('qsave').addEventListener('click',()=>{
+  const v=$('qedit').value,fv=$('fmedit').value;
+  if(!parseQ(v).length){$('qcount').textContent='No main questions found. Check the format.';return}
+  act(()=>{S.qtext=v;S.fmtext=fv;resetRound()});
+  $('qsave').textContent='Saved';setTimeout(()=>$('qsave').textContent='Save questions',1200);
+});
+$('qreset').addEventListener('click',()=>{$('qedit').value=SAMPLE_Q;$('fmedit').value=SAMPLE_FM;renderSetup()});
+// Host "New game": first click asks, second click (within 3 seconds) resets scores and goes to round 1.
+let hvArm=0;
+function hostNewGame(){
+  const b=$('hvNew');
+  if(!hvArm){
+    b.textContent='Click again to reset scores';b.classList.add('bad');
+    hvArm=setTimeout(()=>{hvArm=0;b.textContent='New game';b.classList.remove('bad')},3000);
+    return;
+  }
+  clearTimeout(hvArm);hvArm=0;b.textContent='New game';b.classList.remove('bad');
+  A.newGame();
+}
+/* ---------- One-paste import of AI-written questions ---------- */
+const AI_PROMPT=`Write questions for a Family Feud-style party game.
+Theme and ideas: [PUT YOUR IDEAS HERE. Example: Friendsgiving, a group of 8 friends in their 30s, a few music and dad jokes.]
+
+Make 10 main game questions and 10 Fast Money questions. Each one is a survey-style prompt like "Name something you bring to the beach."
+- Main game: 5 to 8 answers per question.
+- Fast Money: 6 to 8 answers per question, short and common so they're easy to match.
+- List answers from most to least popular, each with a made-up survey point value. The points for one question should add up to between 85 and 100.
+- Keep answers short (1 to 4 words). Keep it fun and friendly for a mixed group.
+
+Reply with ONLY the block below and nothing else. Use exactly this format: a question line, then one answer per line ending with its points, and a blank line between questions.
+
+=== MAIN GAME ===
+Name something people do right after Thanksgiving dinner
+Take a nap 35
+Watch football 23
+Eat more dessert 15
+Do the dishes 10
+Unbutton their pants 7
+Play a game 5
+
+(9 more main game questions)
+
+=== FAST MONEY ===
+Name a kind of pie
+Apple 38
+Pumpkin 27
+Pecan 12
+Cherry 10
+Blueberry 6
+Key lime 4
+
+(9 more Fast Money questions)`;
+
+// Clean up a pasted reply: bullets, numbering, bold, "(35)", "- 35 pts" become "Answer 35".
+function cleanLine(l){
+  return l.replace(/\*\*/g,'').replace(/^\s*(?:\d+[.)]|[-*•])\s+/,'').replace(/^\s*(?:Q(?:uestion)?\s*\d*\s*[:.])\s*/i,'')
+    .replace(/\s*[—–:-]\s*(\d+)\s*(?:pts?|points?)?\s*$/i,' $1').replace(/\s*\((\d+)(?:\s*(?:pts?|points?))?\)\s*$/i,' $1')
+    .replace(/\s+(\d+)\s*(?:pts?|points?)\s*$/i,' $1').trim();
+}
+function parseImport(text){
+  const out={main:[],fm:[]};let sec='main';
+  for(const raw of (text||'').replace(/\r/g,'').split('\n')){
+    const head=raw.replace(/[=#*_]/g,'').trim().toLowerCase().replace(/:$/,'');
+    if(/^main( game)?( questions)?$/.test(head)){sec='main';out.main.push('');continue}
+    if(/^fast money( questions)?$/.test(head)){sec='fm';out.fm.push('');continue}
+    if(/^\(.*more .*\)$/i.test(raw.trim())||/^```/.test(raw.trim()))continue;
+    out[sec].push(raw.trim()?cleanLine(raw):'');
+  }
+  const main=out.main.join('\n').replace(/\n{3,}/g,'\n\n').trim(),fm=out.fm.join('\n').replace(/\n{3,}/g,'\n\n').trim();
+  return {main,fm,mq:parseQ(main),fq:parseQ(fm)};
+}
+function importQuestions(){
+  const r=parseImport($('importBox').value),msg=$('importMsg');
+  if(!r.mq.length){msg.textContent='No main game questions found. Make sure the reply has "=== MAIN GAME ===" and answers ending in numbers.';return}
+  act(()=>{S.qtext=r.main;if(r.fq.length)S.fmtext=r.fm;S.round=0;S.mode='main';resetRound();S.fm=Object.assign(freshFM(),{goal:S.fm.goal})});
+  $('qedit').value=S.qtext;$('fmedit').value=S.fmtext;
+  const fmNote=r.fq.length?`${r.fq.length} Fast Money questions`:'no Fast Money questions (kept the old ones)';
+  const short=r.fq.length&&r.fq.length<10?' Fast Money needs 10 so each team gets its own 5; some will repeat.':'';
+  msg.textContent=`Loaded ${r.mq.length} main game questions and ${fmNote}. Back to round 1.${short}`;
+  $('importBox').value='';renderSetup();
+}
+let armNew=false;
+$('newGame').addEventListener('click',()=>{
+  const b=$('newGame');
+  if(!armNew){armNew=true;b.textContent='Click again to reset scores';setTimeout(()=>{armNew=false;b.textContent='New game (scores to 0)'},3000);return}
+  armNew=false;b.textContent='New game (scores to 0)';A.newGame();closeSetup();
+});
+$('winKeep').addEventListener('click',A.keepPlaying);
+$('winFm').addEventListener('click',A.modeFm);
+window.addEventListener('hashchange',()=>{VIEW=location.hash==='#host'?'host':'board';builtKey=null;render();send({type:'hello'})});
+
+/* ---------- Boot ---------- */
+function start(data){
+  const saved=(data&&data.S)||load();
+  if(saved&&saved.teams){
+    S=Object.assign(freshState(),saved);
+    S.fm=Object.assign(freshFM(),saved.fm||{});
+    if(!S.fmtext)S.fmtext=SAMPLE_FM;
+  }
+  shownScore[0]=S.teams[0].score;shownScore[1]=S.teams[1].score;
+  render();
+  send({type:'hello'});
+  try{navigator.wakeLock?.request('screen').catch(()=>{})}catch(e){}
+}
+window.claude?.hot?.snapshot?.(()=>({S}));
+window.claude?.hot?.ready?window.claude.hot.ready(start):start(window.claude?.hot?.data??{});
+</script>
+</body>
+</html>
