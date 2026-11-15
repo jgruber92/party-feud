@@ -270,6 +270,9 @@ label{display:grid;gap:4px;font-size:13px;color:var(--muted)}
 textarea{font-family:ui-monospace,Menlo,monospace;font-size:13px;line-height:1.5;min-height:220px;resize:vertical;width:100%;box-sizing:border-box}
 .fmnext{display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:space-between;border-top:1px solid var(--line);padding-top:10px}
 .fmnext .help b{color:var(--cream)}
+.check{display:flex;gap:10px;align-items:flex-start;grid-column:1/-1;line-height:1.45}
+.check input{width:auto;margin-top:3px;accent-color:var(--amber)}
+.check b{color:var(--cream)}
 .importbox{border:2px solid var(--amber);border-radius:14px;padding:14px;display:grid;gap:10px}
 .importbox #importBox{min-height:140px}
 .importbox #promptText{min-height:200px}
@@ -501,6 +504,7 @@ textarea{font-family:ui-monospace,Menlo,monospace;font-size:13px;line-height:1.5
         <label>Game title (shown on the TV)<input id="titleIn" maxlength="40" placeholder="e.g. Friendsgiving Feud"></label>
         <label>Points to win<input id="target" type="number" min="50" step="50"></label>
         <label>Fast Money goal<input id="fmGoalIn" type="number" min="50" step="10"></label>
+        <label class="check"><input type="checkbox" id="kaIn"><span><b>Keep TV speakers awake</b> (AirPlay or Bluetooth only). Plays a very quiet hiss so short sounds like the ding aren't cut off. Leave off for laptop speakers: you may hear it, and it keeps the Mac awake while the game is open.</span></label>
       </div>
       <p class="help" style="margin-top:8px">Rounds 1 to 3 are single points, rounds 4 and 5 double, round 6 and later triple. Fast Money: player 1 gets 20 seconds, player 2 gets 25.</p>
     </div>
@@ -788,7 +792,7 @@ Pie 8
 Gravy 6`;
 
 const STORE='friendsgiving-feud-v1';
-const BUILD=23; // bump on every publish so the host can spot a TV window running old code
+const BUILD=24; // bump on every publish so the host can spot a TV window running old code
 let tvMode=null,tvBuild=null;
 const HOST_KEYS=new Set(['Enter','Space','KeyX','KeyR','KeyT','KeyD','ArrowLeft','ArrowRight','ArrowUp','ArrowDown','BracketLeft','BracketRight','KeyN','KeyP','KeyU','KeyS','KeyF','KeyM','Backspace','Digit0','Digit1','Digit2','Digit3','Digit4','Digit5','Digit6','Digit7','Digit8','Numpad0','Numpad1','Numpad2','Numpad3','Numpad4','Numpad5','Numpad6','Numpad7','Numpad8']);
 
@@ -801,7 +805,7 @@ function freshState(){
       {name:'Team Turkey',players:'',score:0,key:'KeyZ',keyLabel:'Z'},
       {name:'Team Stuffing',players:'',score:0,key:'Slash',keyLabel:'/'}
     ],
-    title:'Party Feud',fmWins:[0,0],qtext:SAMPLE_Q,fmtext:SAMPLE_FM,target:300,round:0,muted:false,
+    title:'Party Feud',keepAwake:false,fmWins:[0,0],qtext:SAMPLE_Q,fmtext:SAMPLE_FM,target:300,round:0,muted:false,
     shown:false,revealed:[],strikes:0,pot:0,control:null,awarded:false,armed:false,buzzed:null,over:false,
     fm:freshFM()
   };
@@ -911,16 +915,19 @@ function audio(){
   keepAlive();
   return ac;
 }
-// AirPlay and Bluetooth speakers doze off during silence and clip the start of short sounds
-// (the ding). A steady, far-too-quiet-to-hear hiss keeps the audio link awake.
-let kaOn=false;
+// Optional (Setup switch, off by default): AirPlay and Bluetooth speakers doze off during silence
+// and clip the start of short sounds like the ding. A very quiet steady hiss keeps the link awake.
+// It can be faintly audible on laptop speakers and keeps the Mac from idle-sleeping, so it's opt-in.
+let kaSrc=null;
 function keepAlive(){
-  if(kaOn||!ac||!soundHere())return;kaOn=true;
-  const len=ac.sampleRate*2,buf=ac.createBuffer(1,len,ac.sampleRate),d=buf.getChannelData(0);
-  for(let i=0;i<len;i++)d[i]=Math.random()*2-1;
-  const src=ac.createBufferSource();src.buffer=buf;src.loop=true;
-  const g=ac.createGain();g.gain.value=0.0004; // about -68 dB
-  src.connect(g).connect(ac.destination);src.start();
+  const want=!!S.keepAwake&&!!ac&&soundHere();
+  if(want&&!kaSrc){
+    const len=ac.sampleRate*2,buf=ac.createBuffer(1,len,ac.sampleRate),d=buf.getChannelData(0);
+    for(let i=0;i<len;i++)d[i]=Math.random()*2-1;
+    const src=ac.createBufferSource();src.buffer=buf;src.loop=true;
+    const g=ac.createGain();g.gain.value=0.0004; // about -68 dB
+    src.connect(g).connect(ac.destination);src.start();kaSrc=src;
+  }else if(!want&&kaSrc){try{kaSrc.stop()}catch(e){}kaSrc.disconnect();kaSrc=null}
 }
 function tone(f,dur,type,vol,when,slide){
   const a=audio();if(!a||S.muted)return;
@@ -1470,10 +1477,11 @@ function render(){
   $('app').hidden=VIEW==='host';$('hostView').hidden=VIEW!=='host';
   if(VIEW==='host')renderHost();else renderBoard();
   if(setupOpen)renderSetup();
+  keepAlive(); // start or stop the optional speaker keep-awake to match Setup
 }
 
 /* ---------- Setup ---------- */
-function openSetup(){setupOpen=true;$('setup').hidden=false;$('qedit').value=S.qtext;$('fmedit').value=S.fmtext;$('target').value=S.target;$('fmGoalIn').value=S.fm.goal;$('titleIn').value=S.title;renderSetup()}
+function openSetup(){setupOpen=true;$('setup').hidden=false;$('qedit').value=S.qtext;$('fmedit').value=S.fmtext;$('target').value=S.target;$('fmGoalIn').value=S.fm.goal;$('titleIn').value=S.title;$('kaIn').checked=!!S.keepAwake;renderSetup()}
 function closeSetup(){setupOpen=false;learning=null;$('setup').hidden=true;render()}
 function renderSetup(){
   const wrap=$('teamCards');
@@ -1590,6 +1598,7 @@ $('copyPrompt').addEventListener('click',()=>{
   try{navigator.clipboard.writeText(AI_PROMPT).then(done,fallback)}catch(e){fallback()}
 });
 $('titleIn').addEventListener('input',e=>{S.title=e.target.value.trim()||'Party Feud';sync()});
+$('kaIn').addEventListener('change',e=>{S.keepAwake=e.target.checked;audio();sync()});
 $('target').addEventListener('input',e=>{const v=parseInt(e.target.value,10);if(v>0){S.target=v;sync()}});
 $('fmGoalIn').addEventListener('input',e=>{const v=parseInt(e.target.value,10);if(v>0){S.fm.goal=v;sync()}});
 $('qedit').addEventListener('input',renderSetup);

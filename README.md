@@ -15,7 +15,7 @@ Made for a Friendsgiving and shared for other game nights. Not affiliated with t
 3. Open a **second Chrome window** (Cmd+N) on the laptop and go to the same link with `#host` on the end:
    `https://jgruber92.github.io/party-feud/#host`
    This is the **host screen**. It should say "TV is showing: Main game" with a green dot.
-4. Set the Mac's sound output to the TV (speaker icon in the menu bar) so the dings and buzzers play through the TV. Sounds come from the host window, so there's nothing to click on the TV.
+4. Set the Mac's sound output to the TV (speaker icon in the menu bar) so the dings and buzzers play through the TV. Sounds come from the host window, so there's nothing to click on the TV. If you send sound to the TV over AirPlay or Bluetooth and the ding sometimes cuts out, turn on **Keep TV speakers awake** in Setup. Leave it off for laptop speakers.
 5. Click on the host window. Your keys and the buzzers land there.
 
 Both windows must be in the **same browser on the same laptop**. That's how they stay in sync. If the host screen shows a red "TV window isn't connected" banner, that's what to check.
