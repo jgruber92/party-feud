@@ -62,7 +62,9 @@ Switch the "On the TV" toggle at the top of the host screen to **Fast Money**. E
 
 Reach 200 and the TV throws confetti. Fall short and it lets them down gently.
 
-**More than one round:** press **New Fast Money round** on the host screen to clear the answers and move to the next 10 questions. The sample set has two rounds. Load more questions in Setup for more rounds.
+**Moving along:** press **N** (or the big **Next** button) to go from team 1 player 1, to player 2, to team 2 player 1, to player 2. The host screen shows where you are.
+
+**Head-to-head rounds:** when both teams have played, the TV announces who won the Fast Money round and keeps a running "rounds won" count. Press **N** again to start the next round with 10 new questions. The sample set has two rounds; load more in Setup for more.
 
 ## Making your own questions with AI
 

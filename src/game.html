@@ -268,6 +268,8 @@ input,textarea{background:var(--wine);color:var(--cream);border:1px solid var(--
 .card[data-t="1"]{border-left:5px solid var(--teal)}
 label{display:grid;gap:4px;font-size:13px;color:var(--muted)}
 textarea{font-family:ui-monospace,Menlo,monospace;font-size:13px;line-height:1.5;min-height:220px;resize:vertical;width:100%;box-sizing:border-box}
+.fmnext{display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:space-between;border-top:1px solid var(--line);padding-top:10px}
+.fmnext .help b{color:var(--cream)}
 .importbox{border:2px solid var(--amber);border-radius:14px;padding:14px;display:grid;gap:10px}
 .importbox #importBox{min-height:140px}
 .importbox #promptText{min-height:200px}
@@ -444,6 +446,7 @@ textarea{font-family:ui-monospace,Menlo,monospace;font-size:13px;line-height:1.5
       <div class="hvcol">
         <div class="box">
           <div class="row" id="fmTabs"></div>
+          <div class="fmnext"><div class="help" id="fmTrack"></div><button class="hb big go" data-h="fmNext" id="fmNextBtn"></button></div>
           <div class="hvtimer">
             <div class="big" id="hvTimer">20</div>
             <button class="hb big go" data-h="fmTimer" id="hvTimerBtn">Start <kbd>Enter</kbd></button>
@@ -785,7 +788,7 @@ Pie 8
 Gravy 6`;
 
 const STORE='friendsgiving-feud-v1';
-const BUILD=22; // bump on every publish so the host can spot a TV window running old code
+const BUILD=23; // bump on every publish so the host can spot a TV window running old code
 let tvMode=null,tvBuild=null;
 const HOST_KEYS=new Set(['Enter','Space','KeyX','KeyR','KeyT','KeyD','ArrowLeft','ArrowRight','ArrowUp','ArrowDown','BracketLeft','BracketRight','KeyN','KeyP','KeyU','KeyS','KeyF','KeyM','Backspace','Digit0','Digit1','Digit2','Digit3','Digit4','Digit5','Digit6','Digit7','Digit8','Numpad0','Numpad1','Numpad2','Numpad3','Numpad4','Numpad5','Numpad6','Numpad7','Numpad8']);
 
@@ -798,7 +801,7 @@ function freshState(){
       {name:'Team Turkey',players:'',score:0,key:'KeyZ',keyLabel:'Z'},
       {name:'Team Stuffing',players:'',score:0,key:'Slash',keyLabel:'/'}
     ],
-    title:'Party Feud',qtext:SAMPLE_Q,fmtext:SAMPLE_FM,target:300,round:0,muted:false,
+    title:'Party Feud',fmWins:[0,0],qtext:SAMPLE_Q,fmtext:SAMPLE_FM,target:300,round:0,muted:false,
     shown:false,revealed:[],strikes:0,pot:0,control:null,awarded:false,armed:false,buzzed:null,over:false,
     fm:freshFM()
   };
@@ -829,6 +832,14 @@ function cur(){return Q[S.round]}
 // Every 10 Fast Money questions is one round: 5 for the left team, then 5 for the right team.
 function fmQs(t){const n=FMQ.length;if(!n)return[];const base=(S.fm.set||0)*10+t*5,out=[];for(let i=0;i<5;i++)out.push(FMQ[(base+i)%n]);return out}
 function fmRoundsAvailable(){return Math.max(1,Math.floor(FMQ.length/10))}
+// The host's "Next" button walks the order: team 1 P1, P2, team 2 P1, P2, then the next round.
+function fmPlayerDone(t,p){return S.fm.slots[t][p].every(x=>x.set&&x.st===2)}
+function fmNextStep(){
+  const f=S.fm,t=f.team,o=1-t;
+  if(f.player===0)return {label:`Next: ${S.teams[t].name}, player 2`,run:()=>F.player(1)};
+  if(!fmPlayed(o))return {label:`Next: ${S.teams[o].name}, player 1`,run:()=>F.team(o)};
+  return {label:`Next: Fast Money round ${(f.set||0)+2}`,run:()=>F.newRound()};
+}
 // After the 5th answer the clock stops by itself.
 function fmStopIfDone(){if(S.fm.q>=5&&S.fm.timer.running)S.fm.timer={running:false,endsAt:0,left:Math.max(0,(S.fm.timer.endsAt-Date.now())/1000)}}
 function fmTotal(t){let s=0;for(const pl of S.fm.slots[t])for(const x of pl)if(x.st===2)s+=x.p;return s}
@@ -975,7 +986,13 @@ function playFx(fx){
     case 'fmtext':SND.show();break;
     case 'fmpts':fx.p>0?SND.ding():SND.zero();break;
     case 'fmgoal':SND.win();banner(`${S.teams[fx.t].name} hit ${S.fm.goal}!`,fx.t);celebrate(fx.t);break;
-    case 'fmresult':{const made=fx.total>=fx.goal;if(fx.p>0)SND.ding();setTimeout(()=>{resultCard(fx);if(made){SND.win();celebrate(fx.t)}else SND.short()},fx.p>0?700:0);break}
+    case 'fmresult':{const made=fx.total>=fx.goal,d=fx.p>0?700:0;if(fx.p>0)SND.ding();setTimeout(()=>{resultCard(fx);if(made){SND.win();celebrate(fx.t)}else SND.short()},d);
+      if(fx.winner!=null)setTimeout(()=>{
+        const w=fx.winner,line=`${S.teams[0].name} ${fx.tots[0]}  ·  ${S.teams[1].name} ${fx.tots[1]}`;
+        bigCard(`Fast Money round ${fx.set+1}`,w>=0?`${S.teams[w].name} wins the round!`:"It's a tie!",line,w>=0?teamColor(w):'var(--cream)');
+        if(w>=0){SND.win();celebrate(w)}
+      },d+5600);
+      break}
     case 'tick':SND.show();break;
   }
 }
@@ -1026,7 +1043,7 @@ const A={
   next(){if(S.round>=Q.length-1)return;act(()=>{S.round++;resetRound()})},
   prev(){if(S.round<=0)return;act(()=>{S.round--;resetRound()})},
   undo(){const h=hist.pop();if(!h)return;const v=S.v||0;S=JSON.parse(h);S.v=v+1;builtKey=null;save();render();broadcast(null)},
-  newGame(){act(()=>{S.teams.forEach(t=>t.score=0);S.round=0;S.over=false;S.mode='main';S.fm=Object.assign(freshFM(),{goal:S.fm.goal});resetRound()});shownScore[0]=shownScore[1]=0},
+  newGame(){act(()=>{S.teams.forEach(t=>t.score=0);S.fmWins=[0,0];S.round=0;S.over=false;S.mode='main';S.fm=Object.assign(freshFM(),{goal:S.fm.goal});resetRound()});shownScore[0]=shownScore[1]=0},
   setup(){openSetup()},
   full(){if(document.fullscreenElement){document.exitFullscreen?.().catch(()=>{})}else{document.documentElement.requestFullscreen?.().catch(()=>{})}},
   mute(){S.muted=!S.muted;sync()},
@@ -1073,7 +1090,12 @@ const F={
     // Last points of player 2 revealed = the team's Fast Money is over: show made it / fell short.
     const t=S.fm.team,p2=S.fm.slots[t][1];
     const isFinal=S.fm.player===1&&step===2&&p2.every((y,j)=>y.set&&(j===i||y.st===2));
-    act(()=>{col[i].st=step},isFinal?{k:'fmresult',t,total:after,goal:S.fm.goal,p:x.p}:hit?{k:'fmgoal',t}:step===1?{k:'fmtext'}:{k:'fmpts',p:x.p});
+    // If the other team already finished this round, this reveal decides the head-to-head.
+    const o=1-t,otherDone=fmPlayerDone(o,0)&&fmPlayerDone(o,1),oTot=fmTotal(o);
+    const winner=isFinal&&otherDone?(after>oTot?t:after<oTot?o:-1):null;
+    const tots=[0,0];tots[t]=after;tots[o]=oTot;
+    act(()=>{col[i].st=step;if(winner!=null&&!S.fm.decided){S.fm.decided=true;if(winner>=0)S.fmWins[winner]++}},
+      isFinal?{k:'fmresult',t,total:after,goal:S.fm.goal,p:x.p,winner,tots,set:S.fm.set||0}:hit?{k:'fmgoal',t}:step===1?{k:'fmtext'}:{k:'fmpts',p:x.p});
   },
   result(){const t=S.fm.team;fxOnly({k:'fmresult',t,total:fmTotal(t),goal:S.fm.goal,p:0})},
   uncover(){act(()=>{S.fm.showBoth=!S.fm.showBoth})},
@@ -1253,6 +1275,7 @@ function renderFmBoard(){
   $('fmTotalBox').classList.toggle('hit',tot>=f.goal);
   const o=$('fmOthers');o.innerHTML='';
   S.teams.forEach((tm,i)=>{const s=el('span',null,fmStatus(i));s.style.color=teamColor(i);o.appendChild(s)});
+  if(S.fmWins[0]+S.fmWins[1]>0)o.appendChild(el('span',null,`Rounds won: ${S.teams[0].name} ${S.fmWins[0]} · ${S.teams[1].name} ${S.fmWins[1]}`));
 }
 let tweenRaf=0;
 function tweenScores(){
@@ -1360,6 +1383,14 @@ function renderHostFm(){
   S.teams.forEach((tm,i)=>{const b=el('button',`hb t${i}${f.team===i?' on':''}`,tm.name);b.dataset.h='fmTeam'+i;tabs.appendChild(b)});
   tabs.appendChild(el('span','sep'));
   [0,1].forEach(p=>{const b=el('button',`hb${f.player===p?' on':''}`,`Player ${p+1} (${p?25:20}s)`);b.dataset.h='fmPlayer'+p;tabs.appendChild(b)});
+  const nx=fmNextStep();
+  $('fmNextBtn').innerHTML=`${nx.label} <kbd>N</kbd>`;
+  $('fmTrack').innerHTML='';
+  $('fmTrack').append(el('b',null,`Round ${(f.set||0)+1}: `));
+  S.teams.forEach((tm,i)=>{
+    const mark=p=>fmPlayerDone(i,p)?'✓':(f.team===i&&f.player===p)?'now':'·';
+    $('fmTrack').append(`${i?' | ':''}${tm.name} P1 ${mark(0)}, P2 ${mark(1)}`);
+  });
   updateTimers();
   const q=f.q;
   const col=f.slots[t][f.player];
@@ -1403,6 +1434,7 @@ function renderHostFm(){
   tb.appendChild(el('div','hvmeta',`Fast Money round ${set+1} totals · goal ${f.goal}`));
   if(set+1>avail)tb.appendChild(el('p','help',`You have questions for ${avail} round${avail>1?'s':''}, so this round repeats earlier questions. Load more in Setup.`));
   S.teams.forEach((tm,i)=>{const r=el('div','nm',fmStatus(i));r.style.color=teamColor(i);tb.appendChild(r)});
+  tb.appendChild(el('div','help',`Fast Money rounds won: ${S.teams[0].name} ${S.fmWins[0]}, ${S.teams[1].name} ${S.fmWins[1]}`));
 }
 function renderSync(){
   const ok=Date.now()-lastPing<5000,s=$('sync');
@@ -1513,7 +1545,7 @@ document.addEventListener('keydown',e=>{
   const d=c.match(/^(?:Digit|Numpad)([0-8])$/);
   if(S.mode==='fm'){
     if(d){e.preventDefault();+d[1]===0?F.other('No answer'):F.pick(+d[1]-1);return}
-    const m={KeyT:F.timer,KeyD:F.dup,Space:F.reveal,Enter:F.go,ArrowUp:()=>F.setQ(S.fm.q-1),ArrowDown:()=>F.setQ(S.fm.q+1)};
+    const m={KeyN:()=>fmNextStep().run(),KeyT:F.timer,KeyD:F.dup,Space:F.reveal,Enter:F.go,ArrowUp:()=>F.setQ(S.fm.q-1),ArrowDown:()=>F.setQ(S.fm.q+1)};
     if(m[c]){e.preventDefault();m[c]()}
     return;
   }
@@ -1541,7 +1573,7 @@ $('hostView').addEventListener('click',e=>{
   const map={
     ctl0:()=>A.ctl(0),ctl1:()=>A.ctl(1),award0:()=>A.award(0),award1:()=>A.award(1),
     fmTeam0:()=>F.team(0),fmTeam1:()=>F.team(1),fmPlayer0:()=>F.player(0),fmPlayer1:()=>F.player(1),
-    fmTimer:F.timer,fmResult:F.result,fmNewRound:fmNewRoundClick,hostNewGame:hostNewGame,fmTimerReset:F.timerReset,fmDup:F.dup,fmNone:()=>F.other('No answer'),fmReveal:F.reveal,fmUncover:F.uncover
+    fmTimer:F.timer,fmResult:F.result,fmNewRound:fmNewRoundClick,fmNext:()=>fmNextStep().run(),hostNewGame:hostNewGame,fmTimerReset:F.timerReset,fmDup:F.dup,fmNone:()=>F.other('No answer'),fmReveal:F.reveal,fmUncover:F.uncover
   };
   (map[h]||A[h])?.();
 });
